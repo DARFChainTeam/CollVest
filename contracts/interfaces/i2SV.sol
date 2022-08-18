@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.4.22 <0.9.0;
-
-interface iDaIDO {
+interface i2SVstruct {
     
     struct Rule {
         uint256 amountTeam;
@@ -23,6 +22,9 @@ interface iDaIDO {
         Rule[] rules;
         
     }
+}
+interface i2SV is i2SVstruct {
+    
 
     function setVesting (Rule[] calldata _rules, uint256 _amount, address _tokenTeam, address _tokenInvest, address _teamWallet) external;
 
