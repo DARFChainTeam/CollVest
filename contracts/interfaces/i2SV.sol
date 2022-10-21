@@ -12,10 +12,10 @@ interface i2SV is i2SVstruct {
 
     function putVesting (address _token, address _recepient, uint256 _amount) external payable;
 
-    function claimWithdraw(address _token, uint256 _amount) external;
-
+    function claimWithdrawToken1( uint256 _amount) external;
+    function claimWithdrawToken2( uint256 _amount) external;
     
-    function stopWithdraw() external;
+    function pauseWithdraw() external;
 
     function voteAbort(bool _vote) external;
 
