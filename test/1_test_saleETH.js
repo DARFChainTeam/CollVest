@@ -1,17 +1,29 @@
 /* eslint-disable no-undef */
 const timeMachine = require('ganache-time-traveler');
 const VestFactory = artifacts.require("VestFactory");
+const VestContract = artifacts.require("VestDAIDO");
 const Token2 = artifacts.require("Token2");
 
-const amount1 = 0; 
-const amount2 = 0; 
-const token1 = 0;
-const token2 = 0; 
-const pausePeriod =0 ;
-const vestShare4pauseWithdraw =0 ;
-const voteShareAbort = 0;
-const isNative = 0 ;
-const teamWalle = 0;
+const monthSecs = 365.25 /12 *60*60*24;
+
+/* const amount1 = 300; 
+const amount2 = 1500; 
+const token1 = 0x1;
+//const token2 = 0; //tbd in test
+const pausePeriod =  monthSecs;
+const vestShare4pauseWithdraw =5 ;
+const voteShareAbort = 75;
+const isNative = 1 ;
+//const teamWallet = 0; //account [0];
+ */
+
+const now =  new Date().getTime() / 1000; //secs unix epoch
+
+const vestRules = [{amount1: 100, amount2: 500, claimTime: Math.floor(now + monthSecs)},
+                   {amount1: 100, amount2: 500, claimTime: Math.floor(now + monthSecs*2)},
+                   {amount1: 100, amount2: 500, claimTime: Math.floor(now + monthSecs*3)}
+                ];
+
 
 /*  beforeEach(async() => {
     let snapshot = await timeMachine.takeSnapshot();
@@ -23,79 +35,84 @@ const teamWalle = 0;
 }); */
 
 
-contract('dSVCrowdsale', (accounts) => {
+contract('dSV 2side vesting contract', (accounts) => {
 
+var vestContractAddr;
+var teamWallet;
+var  startVestConf;
+  it('Deploy test  2side vesting contract ', async () => {
 
-  it('should send 1000000 dSVPOS in the crowdsale account', async () => {
+    const dSVFact =  await  VestFactory.deployed();
+    const t2 =  await Token2.deployed();
+    teamWallet = accounts[9];
+     startVestConf = {
+      amount1:300,
+      amount2:1500,
+      token1: t2.address,
+      token2: t2.address,
+      pausePeriod:monthSecs,
+      vestShare4pauseWithdraw: 5,
+      voteShareAbort:75, 
+      isNative: true,
+      teamWallet: teamWallet 
+    }
+    
+    const txDepl = await dSVFact.deployVest (
+      vestRules,
+      startVestConf
+    );
+    
+    vestContractAddr = txDepl.logs[0].args[0];
+    const eventRules = txDepl.logs[0].args[1];
+    const eventConf = txDepl.logs[0].args[2]
+
+    assert.equal(eventRules[0].amount1,  vestRules[0].amount1, "vestRules");
+    assert.equal(eventConf.amount2,  startVestConf.amount2, "vestConf");
+
+    const vestContract = await VestContract.at(vestContractAddr);
+
+    const vestConf = await vestContract.vest();
+        
+    assert.equal(vestConf.pausePeriod,  startVestConf.pausePeriod);
+
+  });
+
+  it('should send amount2 of token2 in the vesting account', async () => {
     let snapshot = await timeMachine.takeSnapshot();
     snapshotId = snapshot['result'];
 
-    t2 = await Token2.deployed();
-    const balance = await t2.balanceOf(accounts[0])
+    const t2 = await Token2.deployed();
+  //  const balance = await t2.balanceOf(accounts[0])
 
-   // await t2.transfer(CSaddr.dSVCrowdsale.address,transferSumSV)
+    await t2.transfer(teamWallet, startVestConf.amount2/2);
+    const balance = await t2.balanceOf(teamWallet)
+    assert.equal(balance, startVestConf.amount2/2, "didn't transfer startVestConf.amount2");
+
    // assert.equal(web3.utils.fromWei(balance),  web3.utils.fromWei(transferSumSV), web3.utils.fromWei(balance) + "- not right in the [0] account");
-    const balanceCS = await t2.balanceOf(CSaddr.dSVCrowdsale.address);
-    assert.equal(web3.utils.fromWei(balanceCS),web3.utils.fromWei(transferSumSV), web3.utils.fromWei(balanceCS) + "- not right in the crowdsale contract");
-  }); 
 
-/*   it('Deploy test DAI ', async () => {
-    DAIi = await DAItest.deployed();
-    const balance = await DAIi.balanceOf(accounts[0])
-    assert.equal( 700000, web3.utils.fromWei(balance), web3.utils.fromWei(balance) + "- wasn't in the first account");
-   
-  });  */
+  //   const balanceCS = await t2.balanceOf(CSaddr.SVETCrowdsale.address);
+  //   assert.equal(web3.utils.fromWei(balanceCS),web3.utils.fromWei(transferSumSV), web3.utils.fromWei(balanceCS) + "- not right in the crowdsale contract");
+  // }); 
+    const vestContract = await VestContract.at(vestContractAddr);
 
-  it('Deploy test crowdsale ', async () => {
+    await t2.approve(vestContractAddr,startVestConf.amount2/2, {from:teamWallet});
+    await vestContract.putVesting(t2.address, teamWallet, startVestConf.amount2 / 2, {from:teamWallet} )
+    const balanceT2= await t2.balanceOf(accounts[0]);
 
-    CSdepl =  await  dSVCrowdsale.deployed()
-    const rateDAI = await CSdepl.rateDAI()
-    assert.equal(rateDAI,  rate, rateDAI, " rateDAI - not right ");
-    const opTime = await CSdepl.openingTime()
-    //assert.equal( openingTime, opTime.toNumber(),  opTime.toNumber() + " opTime not right ");
-    const clTime = await CSdepl.closingTime()
-    assert.equal(closingTime, clTime.toNumber(), clTime.toNumber() + " clTime not right ");
-    const minSV = web3.utils.fromWei (await CSdepl.minAmountdSVs())
-    assert.equal( minAmountdSVs, minSV,  minSV + " minSV not right ");
-    const maxSV = await web3.utils.fromWei ( CSdepl.maxAmountdSVs())
-    assert.equal( maxAmountdSVs, maxSV, maxSV + " maxSV not right ");
-    const addrDAI = await CSdepl.addressDAI()
-    assert.equal(addrDAI,  DAIi.address, addrDAI + "addrDAI not right ");
+
+    await t2.approve(vestContractAddr,startVestConf.amount2/2, {from: accounts[0]} );
+    const allowanceT2 =  ( await t2.allowance(accounts[0], vestContractAddr )).toNumber();
+
+    await vestContract.putVesting(t2.address, teamWallet, startVestConf.amount2/2, {from: accounts[0]});
+
+
+    const vested9 = await vestContract.getVested( {from: teamWallet} ); 
+    assert.equal(startVestConf.amount2, vested9/* [1] */.toNumber(), "vested9");
+
 
   });
-    it('Buy once approved amount not right time before starting', async () => {
-      block = await web3.eth.getBlock("latest");
-      console.log ("new Date: ",   new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
 
-    const balanceDAIbefore = await DAIi.balanceOf(accounts[0])
-    const balanceSVbefore = await t2.balanceOf(accounts[0])
-    await DAIi.approve(CSdepl.address, testPurshDAI );
-    await CSdepl.buyTokensDAI(accounts[0], testPurshDAI );
-   //TODO  add catch of revert
-   assert(false, "todo: add test catch not right time")
-  });   
-
-  it('Buy once lower then approved amount at crowdsale time time', async () => {
-    var block = await web3.eth.getBlock("latest");
-    const timeShift = openingTime - block.timestamp + 24*60*60;
-    timeMachine.advanceTimeAndBlock(timeShift);
-    block = await web3.eth.getBlock("latest");
-    console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
-     
-   // assert.equal (block.timestamp,  openingTime +  86400,block.timestamp,  "time machine didn't works" )
-    const balanceDAIbefore1 = web3.utils.fromWei  (await DAIi.balanceOf(accounts[1]));
-    const balanceSVbefore1 =  web3.utils.fromWei (await CSdepl.balanceOf(accounts[1]));
-    //const testPurshDAI =  web3.utils.toWei("2000");
-    await DAIi.approve(CSdepl.address, web3.utils.toWei("200") , {from: accounts[1]}  );
-    await CSdepl.buyTokensDAI(accounts[1], web3.utils.toWei("200") , {from: accounts[1]} );
-
-/*     const balanceDAI = web3.utils.fromWei (await DAIi.balanceOf(accounts[1]))
-    assert.equal(balanceDAIbefore1-web3.utils.fromWei (testPurshDAI), balanceDAI, balanceDAI + " balanceDAI")
-    const balanceSV = web3.utils.fromWei ( await CSdepl.balanceOf(accounts[1]))
-    assert.equal(balanceSVbefore1 + web3.utils.fromWei(testPurshDAI) * rate, balanceSV, "balanceDAI")
-     */
-    });
-
+/* 
     
 
   it('Buy once approved amount right time', async () => {
@@ -153,6 +170,6 @@ contract('dSVCrowdsale', (accounts) => {
      assert.equal( balanceCS, balanceSV, "Not right balances " + balanceSV +" vs "+ balanceCS)
      await timeMachine.revertToSnapshot(snapshotId);
 
-  }); 
+  });  */
 
 });
