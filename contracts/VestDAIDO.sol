@@ -35,7 +35,7 @@ contract VestDAIDO is i2SV {
     mapping(address => mapping (address => uint256))  vested; //token => address of user
     mapping(address => mapping (address => uint256))  withdrawed; //token => address of user
 
-    address constant ETHCODE = address(0x1);
+    address constant ETHCODE = address(0x0000000000000000000000000000000000000001);
     /// @notice setVesting sets parameters of vesting 
     function setVesting (
         Vesting calldata _vest,
@@ -68,28 +68,39 @@ contract VestDAIDO is i2SV {
         (bool ok, uint256 curVest) =  vested[_token][_recepient].tryAdd(_amount);
         require(ok,  "curVest.tryAdd" );
         if (curVest == _amount) vestors.push(_recepient);            
-            // payments with ERC20 token               
+            
         if (_token == vest.token1) {       
-            if (vest.isNative) {
-            // payments with native token        
+            if (vest.isNative){ // payments with native token                     
+
                 require(_amount == msg.value, "amount must be equal to sent ether");
-            } 
+            } else {
+                IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+            }
             raisedToken1 = raisedToken1.add( _amount);
             require(raisedToken1 <= vest.amount1, "Token1 capped");
-        } else  {
+        } else if (_token == vest.token2)  {
             raisedToken2 = raisedToken2.add( _amount);
             require(raisedToken2 <= vest.amount2, "Token2 capped");
+            IERC20(_token).transferFrom(msg.sender, address(this), _amount);
         }
-        if (raisedToken1 >= vest.amount1 && raisedToken2 >= vest.amount2  ) status = CAPPED;
-        
+                
         vested[_token][_recepient] = curVest;
-        IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+
+        if (raisedToken1 >= vest.amount1 && 
+            raisedToken2 >= vest.amount2 &&
+            ((vest.isNative && address(this).balance >=  vest.amount1) ||
+            (!vest.isNative && IERC20(vest.token1).balanceOf(address(this)) >= vest.amount1)) &&
+             IERC20(vest.token2).balanceOf(address(this)) >= vest.amount2
+            ) {
+                status = CAPPED;
+            }
+ 
         }
     
 
     function isPaused () public view returns (bool) {
         for (uint8 i=0; i<pauses.length; i++){            
-            if (block.timestamp > pauses[i].pauseTime+vest.pausePeriod) return true;
+            if (pauses[i].pauseTime > 0 && block.timestamp < pauses[i].pauseTime+vest.pausePeriod) return true;
         }
         return false;
     }
@@ -100,13 +111,13 @@ contract VestDAIDO is i2SV {
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @return uint256- available amount of _token for claiming 
         /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
-        if (!isPaused() || status == ABORTED || status < CAPPED)  return 0;
+        if ( isPaused() ||  status == ABORTED || status < CAPPED)  return 0;
         for (uint8 i=0; i<rules.length; i++) { 
             if (rules[i].claimTime <= block.timestamp){
-                avAmount.add(rules[i].amount1); 
+                avAmount = avAmount.add(rules[i].amount1); 
            }
         }
-            avAmount.sub(withdrawed[vest.token1][vest.teamWallet]);        
+          avAmount =  avAmount.sub(withdrawed[vest.token1][vest.teamWallet]);        
     }
 
 
@@ -122,7 +133,7 @@ contract VestDAIDO is i2SV {
         uint256 avAmount = availableClaimToken1();
         require(_amount <= avAmount, "No enough amount for withdraw");
         
-        withdrawed[vest.token1][vest.teamWallet].add(_amount);
+        withdrawed[vest.token1][vest.teamWallet] =  withdrawed[vest.token1][vest.teamWallet].add(_amount);
        
         if (vest.isNative) {
             payable(vest.teamWallet).transfer(_amount);
@@ -138,14 +149,14 @@ contract VestDAIDO is i2SV {
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @return uint256- available amount of _token for claiming 
         /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
-        if (!isPaused() || status == ABORTED || status < CAPPED )  return 0;
+        if ( isPaused() ||  status == ABORTED || status < CAPPED)  return 0;
         for (uint8 i=0; i<rules.length; i++) { 
             if (rules[i].claimTime <= block.timestamp){
-                avAmount.add(rules[i].amount2); 
+                avAmount = avAmount.add(rules[i].amount2); 
            }
         }
-            avAmount.mul(vested[vest.token1][msg.sender]).div(raisedToken1);
-            avAmount.sub(withdrawed[vest.token2][msg.sender]);        
+            avAmount = avAmount.mul(vested[vest.token1][msg.sender]).div(raisedToken1);
+            avAmount = avAmount.sub(withdrawed[vest.token2][msg.sender]);        
     } 
 
     function claimWithdrawToken2(uint256 _amount) public override { 
@@ -157,11 +168,11 @@ contract VestDAIDO is i2SV {
         require(status != ABORTED , "Vesting aborted");
         require(status >= CAPPED,  "Vesting not capped");
        
-        uint256 avAmount = availableClaimToken1();
+        uint256 avAmount = availableClaimToken2();
         require(_amount <= avAmount, "No enough amount for withdraw");
-        withdrawed[vest.token2][msg.sender].add(_amount);
+        withdrawed[vest.token2][msg.sender] = withdrawed[vest.token2][msg.sender].add(_amount);
 
-        IERC20(vest.token2).transferFrom( address(this), msg.sender, _amount);
+        IERC20(vest.token2).transfer( msg.sender, _amount);
     }
     
 
@@ -214,8 +225,13 @@ contract VestDAIDO is i2SV {
         }
     }
 
-    function getVested () public view returns (/* uint256, */ uint256) {
-        return (/* vested[vest.token1][msg.sender],  */vested[vest.token2][msg.sender]);
+    function getVestedTok1 () public view returns (uint256) {
+        return (vested[vest.token1][msg.sender]);
     }
+    function getVestedTok2 () public view returns (uint256) {
+        return (vested[vest.token2][msg.sender]);
+    }
+
+    
 
 }

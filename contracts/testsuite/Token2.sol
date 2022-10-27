@@ -13,7 +13,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 contract Token2 is ERC20 {
 
 	constructor() ERC20("dSVtsttoken", "SVTP")  {
-	        super._mint(msg.sender, 2000000 * 10**18);
+	        super._mint(msg.sender, 2000000 );
 
 	}
 
