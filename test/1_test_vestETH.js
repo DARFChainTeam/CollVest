@@ -82,9 +82,9 @@ let snapshotId;
 
     const vestContract = await VestContract.at(vestContractAddr);
 
-    await vestContract.putVesting(startVestConf.token1, accounts[1], startVestConf.amount1 /periods, {from:accounts[1], value:startVestConf.amount1 /periods} )
-    await vestContract.putVesting(startVestConf.token1, accounts[2], startVestConf.amount1 /periods, {from:accounts[2], value:startVestConf.amount1 /periods} )
-    await vestContract.putVesting(startVestConf.token1, accounts[3], startVestConf.amount1 /periods, {from:accounts[3], value:startVestConf.amount1 /periods} )
+    await vestContract.putVesting(startVestConf.token1, accounts[1], startVestConf.amount1 /3, {from:accounts[1], value:startVestConf.amount1 /3} )
+    await vestContract.putVesting(startVestConf.token1, accounts[2], startVestConf.amount1 /3, {from:accounts[2], value:startVestConf.amount1 /3} )
+    await vestContract.putVesting(startVestConf.token1, accounts[3], startVestConf.amount1 /3, {from:accounts[3], value:startVestConf.amount1 /3} )
 
 
     const vested1 = await vestContract.getVestedTok1( {from: accounts[1]} ); 
@@ -162,7 +162,7 @@ let snapshotId;
     const balt1before1 =  await web3.eth.getBalance(teamWallet);
     
     const av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
-    assert.equal (av2claimt1, startVestConf.amount1 /periods, "amount t1 1st month ")
+    assert.equal (av2claimt1, startVestConf.amount1 /3, "amount t1 1st month ")
 
     await vestContract.claimWithdrawToken1( av2claimt1 ) ;
     
@@ -217,7 +217,7 @@ let snapshotId;
     const balt1before1 =  await web3.eth.getBalance(teamWallet);
     
     const av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
-    assert.equal (av2claimt1, startVestConf.amount1 /periods, "amount t1 1st month ")
+    assert.equal (av2claimt1, startVestConf.amount1 /3, "amount t1 1st month ")
 
     await vestContract.claimWithdrawToken1( av2claimt1 ) ;
     
@@ -272,7 +272,7 @@ let snapshotId;
     const balt1before1 =  await web3.eth.getBalance(teamWallet);
     
     const av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
-    assert.equal (av2claimt1, startVestConf.amount1 /periods, "amount t1 1st month ")
+    assert.equal (av2claimt1, startVestConf.amount1 /3, "amount t1 1st month ")
 
     await vestContract.claimWithdrawToken1( av2claimt1 ) ;
     

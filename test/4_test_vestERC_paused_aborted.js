@@ -212,28 +212,9 @@ let snapshotId;
   
     });
 
-    it('Pause and try to  withdraw then paused (don`t have vested enough) ', async () => {
-      var block = await web3.eth.getBlock("latest");
-      const timeShift =  monthSecs; // openingTime - block.timestamp 
-      await timeMachine.advanceTimeAndBlock(timeShift + 100);
-      block = await web3.eth.getBlock("latest");
-      assert (block.timestamp > new Date().getTime() / 1000 ,block.timestamp,  "time machine didn't works" )
-      console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
-      const vestContract = await VestContract.at(vestContractAddr);
-      let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
-      assert.equal (av2claimt1, startVestConf.amount1 /3, "amount t1 3rd month ")
-      try {
-        await vestContract. pauseWithdraw() ;
-      }  catch (e) {
-        // console.log(e)
-        assert.equal(e.data.reason, "Didn't vested enough to pause work", "'Didn't vested enough to pause work'" )
-
-      }  
-      
-    });
 
 
-  it('Pause and try to  withdraw then paused ( vested enough) ', async () => {
+  it('Pause and when vested enough and try  to  withdraw (negative) ', async () => {
     var block = await web3.eth.getBlock("latest");
     const timeShift =  monthSecs; // openingTime - block.timestamp 
     await timeMachine.advanceTimeAndBlock(timeShift + 100);
@@ -242,11 +223,11 @@ let snapshotId;
     console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
     const vestContract = await VestContract.at(vestContractAddr);
     let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
-    assert.equal (av2claimt1, startVestConf.amount1*2 /periods, "amount t1 3rd month ")
+    assert.equal (av2claimt1, startVestConf.amount1 /3, "amount t1 3rd month ")
 
     await vestContract. pauseWithdraw({from: accounts[1]}) ;
     try {
-      await vestContract.claimWithdrawToken1( av2claimt1 ) ;
+      await vestContract.claimWithdrawToken1( 1 ) ;
 
     } catch (e) {
       //console.log(e)
@@ -254,63 +235,67 @@ let snapshotId;
 
     }
 
-    
+    try {
+      await vestContract.claimWithdrawToken2( 1 ) ;
+
+    } catch (e) {
+      //console.log(e)
+      assert.equal(e.data.reason, "Withdraw paused by participant", "Withdraw paused by participant" )
+
+    }
+
   });
-  it('withdraw t1 once approved amount 2nd period time', async () => {
 
-    // time shift 
-    var block = await web3.eth.getBlock("latest");
-    const timeShift =  monthSecs; // openingTime - block.timestamp 
-    await timeMachine.advanceTimeAndBlock(timeShift + 100);
-    block = await web3.eth.getBlock("latest");
-    assert (block.timestamp > new Date().getTime() / 1000 ,block.timestamp,  "time machine didn't works" )
-    console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
+  it('Voting for abort - not enough votes for refund (negative) ', async () => {
 
     const vestContract = await VestContract.at(vestContractAddr);
-    const t1 =  await Token1.deployed();
-
-    const balt1before1 =  (await t1.balanceOf(teamWallet)).toNumber();
     
-    let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
-    assert.equal (av2claimt1, startVestConf.amount1 * 2 /periods, "amount t1 2nd month ")
+    const tx = await vestContract.voteAbort(true, {from: accounts[1]});
 
-    await vestContract.claimWithdrawToken1( av2claimt1 ) ;
-    
-    const balt1after1 =  (await t1.balanceOf(teamWallet)).toNumber();
+    //console.log(tx)
+    const votes = tx.logs[1].args[1];
+    assert (votes, 33, "votes acc1 ")
 
-    assert.equal (balt1after1 - balt1before1,  av2claimt1, "balt1before1+ av2claimt1" );
+    const statusVest = (await vestContract.status()).toNumber();
 
-    av2claimt1 = (await vestContract.availableClaimToken1()).toNumber();
-
-    assert.equal (av2claimt1, 0, "not all claimed ")
+    assert (statusVest, 150, "voting");
+  
+    try {
+      await vestContract.refund({from: accounts[1]});
+    }
+    catch (e) {
+      assert.equal(e.data.reason,  "Vesting works normally, can't refund" );
+    }
 
     });
-  it('withdraw t2 once approved amount 2nd period time', async () => {
 
-    // console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
+    it('Voting for abort -  enough votes for refund, refunding ', async () => {
+
+      const vestContract = await VestContract.at(vestContractAddr);
       
-    const vestContract = await VestContract.at(vestContractAddr);
-    // const t1 =  await Token1.deployed();
-    const t2 =  await Token2.deployed();
+  
+      let tx = await vestContract.voteAbort(true, {from: accounts[2]});
+      let  votes = tx.logs[0].args[1];
+      assert (votes, 33, "votes acc2 ")
+  
+      tx = await vestContract.voteAbort(true, {from: accounts[3]});
+       votes = tx.logs[0].args[1];
+      assert (votes, 33, "votes acc3 ")
+  
 
+      const statusVest = (await vestContract.status()).toNumber();
+  
+      assert (statusVest, 200, "aborted");
+    
+      
+      await vestContract.refund({from: accounts[1]});
+      
+      await vestContract.refund({from: accounts[2]});
 
-    const balt2before1 =  (await  t2.balanceOf(accounts[1])).toNumber();
-    const vested1 = (await vestContract.getVestedTok1({from:accounts[1]})).toNumber();
-    let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[1]})).toNumber();
+      await vestContract.refund({from: accounts[3]});
 
-
-    await vestContract.claimWithdrawToken2( av2claimt2, {from:accounts[1]} ) ;
-    const balt2after1 = (await  t2.balanceOf(accounts[1])).toNumber();
-
-
-   // assert.equal (av2claimt2, Math.round(startVestConf.amount2*2 /periods * vested1 / startVestConf.amount1), "amount t2 1st month ")
-    assert.equal (balt2after1 - balt2before1,  av2claimt2, "balt1before1+ av2claimt1" );
-
-    av2claimt2 = (await vestContract.availableClaimToken2()).toNumber();
-
-    assert.equal (av2claimt2, 0, "not all claimed T2")
-
-    });
+  
+      });
 
     it('restoring chain ', async () => {
       await timeMachine.revertToSnapshot(snapshotId);

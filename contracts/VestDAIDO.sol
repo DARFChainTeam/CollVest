@@ -33,8 +33,9 @@ contract VestDAIDO is i2SV {
     address[] public vestors;
     
 
-    mapping(address => mapping (address => uint256))  vested; //token => address of user
-    mapping(address => mapping (address => uint256))  withdrawed; //token => address of user
+    mapping(address => mapping (address => uint256)) public  vested; //token => address of user
+    mapping(address => mapping (address => uint256))  public withdrawed; //token => address of user
+    mapping(address => bool) public voters; 
 
     address constant ETHCODE = address(0x0000000000000000000000000000000000000001);
     /// @notice setVesting sets parameters of vesting 
@@ -200,13 +201,17 @@ contract VestDAIDO is i2SV {
 
     function voteAbort(bool _vote) public override {
         if (_vote && isPaused())  {
-            votesForAbort ++;
+            require (!voters[msg.sender], "already voted!");
+            voters[msg.sender] = true;
+            uint shareVote = vested[vest.token1][msg.sender].mul(100).div(raisedToken1);
+            shareVote = shareVote.add( vested[vest.token2][msg.sender].mul(100).div(raisedToken2));
+            votesForAbort = votesForAbort + uint16(shareVote);
             if (status != VOTING) {
                 status = VOTING;
                 emit VestStatus(address(this), VOTING);
                 }
-            emit Voting(address(this), votesForAbort);
-            if (votesForAbort > vestors.length * vest.voteShareAbort / 100) {
+            emit Voting(address(this), shareVote); 
+            if (votesForAbort >  vest.voteShareAbort ) {
                 emit VestStatus(address(this),ABORTED);
                 status = ABORTED ;
             }
@@ -218,27 +223,28 @@ contract VestDAIDO is i2SV {
 
     function refund () public {
         require(status == ABORTED , "Vesting works normally, can't refund" );
-        uint256 avAmount;
+        uint256 avAmount1;
         //refund token1
         if (vested[vest.token1][msg.sender] > 0) { 
             if (vest.isNative) {
                 // checking balance of ether
-                avAmount = address(this).balance;
-                avAmount.mul(vested[vest.token1][msg.sender]).div(vest.amount1);
-                payable(msg.sender).transfer(avAmount);
+                avAmount1 = address(this).balance;
+                avAmount1 = avAmount1.mul(vested[vest.token1][msg.sender]).div(vest.amount1);
+                payable(msg.sender).transfer(avAmount1);
             }
             else { 
                 // checking balance of ERc20 token
-                avAmount = IERC20(vest.token1).balanceOf(address(this));                
-                avAmount.mul(vested[vest.token1][msg.sender]).div(vest.amount1);
-                IERC20(vest.token1).transferFrom( address(this), msg.sender, avAmount);
+                avAmount1 = IERC20(vest.token1).balanceOf(address(this));                
+                avAmount1 = avAmount1.mul(vested[vest.token1][msg.sender]).div(vest.amount1);
+                IERC20(vest.token1).transfer( msg.sender, avAmount1);
             }
         }
         //refund token2 
+        uint256 avAmount2;
         if (vested[vest.token2][msg.sender] > 0) { 
-            avAmount = IERC20(vest.token2).balanceOf(address(this));
-            avAmount.mul(vested[vest.token2][msg.sender]).div(vest.amount2);
-            IERC20(vest.token2).transferFrom( address(this), msg.sender, avAmount);
+            avAmount2 = IERC20(vest.token2).balanceOf(address(this));
+            avAmount2 = avAmount2.mul(vested[vest.token2][msg.sender]).div(vest.amount2);
+            IERC20(vest.token2).transfer( msg.sender, avAmount2);
         }
     }
 

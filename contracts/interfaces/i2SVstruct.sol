@@ -36,5 +36,5 @@ interface i2SVstruct {
 
     event Claimed(address indexed, address indexed, address indexed, uint256); // vesting contract, token, recepient, amount
     event VestStatus (address indexed,   uint8 indexed);// vesting contract, status
-    event Voting (address, uint16); //// vesting contract, voted for abort
+    event Voting (address, uint256); //// vesting contract, voted for abort
 }
