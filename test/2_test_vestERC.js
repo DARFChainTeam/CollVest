@@ -64,8 +64,8 @@ let snapshotId;
     );
     
     vestContractAddr = txDepl.logs[0].args[0];
-    const eventRules = txDepl.logs[0].args[1];
-    const eventConf = txDepl.logs[0].args[2]
+    const eventConf  = txDepl.logs[0].args[1];
+    const eventRules = txDepl.logs[0].args[2]
 
     assert.equal(eventRules[0].amount1,  vestRules[0].amount1, "vestRules");
     assert.equal(eventConf.amount2,  startVestConf.amount2, "vestConf");

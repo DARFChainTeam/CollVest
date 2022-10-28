@@ -30,4 +30,11 @@ interface i2SVstruct {
         address teamWallet; //        
         
     } 
+
+    event CreatedVesting ( address indexed, Vesting, Rule[]); //vesting contract, terms,  conditions
+    event Vested(address indexed, address indexed, address indexed, uint256); // vesting contract, token, vestor, amount
+
+    event Claimed(address indexed, address indexed, address indexed, uint256); // vesting contract, token, recepient, amount
+    event VestStatus (address indexed,   uint8 indexed);// vesting contract, status
+    event Voting (address, uint16); //// vesting contract, voted for abort
 }

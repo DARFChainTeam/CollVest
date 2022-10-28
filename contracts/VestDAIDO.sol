@@ -17,8 +17,9 @@ contract VestDAIDO is i2SV {
     uint8 constant CAPPED = 10;
     uint8 constant STARTED = 20;
     uint8 constant PAUSED = 100;
+    uint8 constant VOTING = 150;
     uint8 constant ABORTED = 200;
-    uint8 constant FINISHED = 255;
+    uint8 constant REFUNDING = 220;
     
     uint8 public status ; // (0- created, 10- capped , 20 - started, 100 - paused 200 - aborted, 255 - finished )
     uint16 public votesForAbort;    
@@ -54,6 +55,8 @@ contract VestDAIDO is i2SV {
         require(amount1 == _vest.amount1 && amount2 == _vest.amount2, "Error in vest schedule"  );
         vest = _vest;
         isConfigured = true;
+        emit CreatedVesting(address(this),_vest, _rules);
+        emit VestStatus(address(this),CREATED);
         }
     
     
@@ -85,6 +88,7 @@ contract VestDAIDO is i2SV {
         }
                 
         vested[_token][_recepient] = curVest;
+        emit Vested(address(this), _token, msg.sender, _amount);
 
         if (raisedToken1 >= vest.amount1 && 
             raisedToken2 >= vest.amount2 &&
@@ -93,6 +97,8 @@ contract VestDAIDO is i2SV {
              IERC20(vest.token2).balanceOf(address(this)) >= vest.amount2
             ) {
                 status = CAPPED;
+                emit VestStatus(address(this),CAPPED);
+
             }
  
         }
@@ -129,6 +135,7 @@ contract VestDAIDO is i2SV {
         require(!isPaused(), "Withdraw paused by participant");
         require(status != ABORTED , "Vesting aborted");
         require(status >= CAPPED,  "Vesting not capped");
+//        require(msg.sender == vest.teamWallet, "just call from teamwallet"); //tbd is necessary or not?
        
         uint256 avAmount = availableClaimToken1();
         require(_amount <= avAmount, "No enough amount for withdraw");
@@ -139,8 +146,9 @@ contract VestDAIDO is i2SV {
             payable(vest.teamWallet).transfer(_amount);
         }
         else { 
-            IERC20(vest.token1).transfer(vest.teamWallet, _amount);
+            IERC20(vest.token1).transfer(vest.teamWallet, _amount);            
          }
+        emit Claimed(address(this), vest.token1, msg.sender, _amount);
     }
 
     function availableClaimToken2 () public view returns (uint256 avAmount) {
@@ -173,6 +181,7 @@ contract VestDAIDO is i2SV {
         withdrawed[vest.token2][msg.sender] = withdrawed[vest.token2][msg.sender].add(_amount);
 
         IERC20(vest.token2).transfer( msg.sender, _amount);
+        emit Claimed(address(this), vest.token2, msg.sender, _amount);
     }
     
 
@@ -183,14 +192,22 @@ contract VestDAIDO is i2SV {
                 "Didn't vested enough to pause work"
                 );
         pauses.push(Withdrawpauses(msg.sender, block.timestamp));
+        status = PAUSED;
+        emit VestStatus(address(this),PAUSED);
         
     }
     
 
     function voteAbort(bool _vote) public override {
         if (_vote && isPaused())  {
-            votesForAbort+=1;
+            votesForAbort ++;
+            if (status != VOTING) {
+                status = VOTING;
+                emit VestStatus(address(this), VOTING);
+                }
+            emit Voting(address(this), votesForAbort);
             if (votesForAbort > vestors.length * vest.voteShareAbort / 100) {
+                emit VestStatus(address(this),ABORTED);
                 status = ABORTED ;
             }
         } else if (!isPaused()) {

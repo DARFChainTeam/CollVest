@@ -11,17 +11,7 @@ contract VestFactory  is i2SVstruct {
     function deployVest( 
         Rule[] calldata _rules,
         Vesting calldata _vestConf
-/*         bytes32 _typeContract,        
-      uint256 _amount1, 
-        uint256 _amount2, 
-        address _token1,  //vested tokens from 1st side, address if ERC20 contract, but if isNative ==true, must set to "0x1"
-        address _token2,
-/*         uint256 _startDate, 
-      uint256 _pausePeriod,
-        uint8 _vestShare4pauseWithdraw,
-        uint8 _voteShareAbort, 
-        bool _isNative,
-        address _teamWallet */
+
         
         )   public  {
             /// @notice Explain to an end user what this does
@@ -51,7 +41,6 @@ contract VestFactory  is i2SVstruct {
             vsd.setVesting (            
                 vest,
                 _rules);
-           emit NewVesting(address(vsd), _rules, vest);
     //    }
         
     }
