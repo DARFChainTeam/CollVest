@@ -283,7 +283,7 @@ let snapshotId;
     const balt1before1 =  (await t1.balanceOf(teamWallet)).toNumber();
     
     let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
-    assert.equal (av2claimt1, startVestConf.amount1 /periods, "amount t1 1st month ")
+    assert.equal (av2claimt1, startVestConf.amount1 /periods, "amount t1 3d month ")
 
     await vestContract.claimWithdrawToken1( av2claimt1 ) ;
     
