@@ -5,7 +5,8 @@ import "./VestDAIDO.sol";
 
 
 contract VestFactory  is i2SVstruct {
-     event NewVesting(address, Rule[], Vesting);
+    event NewVesting(address, Rule[], Vesting);
+    address constant ETHCODE = address(0x0000000000000000000000000000000000000001);
 
     function deployVest( 
         Rule[] calldata _rules,
@@ -46,7 +47,7 @@ contract VestFactory  is i2SVstruct {
 
 
             VestDAIDO vsd = new VestDAIDO();
-            if (_vestConf.isNative ) vest.token1 = address(0x1);
+            if (_vestConf.isNative ) vest.token1 = ETHCODE;
             vsd.setVesting (            
                 vest,
                 _rules);

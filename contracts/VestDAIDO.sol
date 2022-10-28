@@ -42,7 +42,7 @@ contract VestDAIDO is i2SV {
         Rule[] calldata _rules
         ) public override { 
         require(!isConfigured, "can't change anything");
-        require(_vest.isNative && _vest.token1 == ETHCODE, "Error in config native token");
+        if (_vest.isNative) require( _vest.token1 == ETHCODE, "Error in config native token");
         
         uint256 amount1;
         uint256 amount2;            
@@ -139,7 +139,7 @@ contract VestDAIDO is i2SV {
             payable(vest.teamWallet).transfer(_amount);
         }
         else { 
-            IERC20(vest.token1).transferFrom( address(this), vest.teamWallet, _amount);
+            IERC20(vest.token1).transfer(vest.teamWallet, _amount);
          }
     }
 
