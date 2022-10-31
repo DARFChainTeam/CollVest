@@ -272,7 +272,8 @@ let snapshotId;
     it('Voting for abort -  enough votes for refund, refunding ', async () => {
 
       const vestContract = await VestContract.at(vestContractAddr);
-      
+      const t1 =  await Token1.deployed();
+    
   
       let tx = await vestContract.voteAbort(true, {from: accounts[2]});
       let  votes = tx.logs[0].args[1];
@@ -287,13 +288,27 @@ let snapshotId;
   
       assert (statusVest, 200, "aborted");
     
-      
+      let balt1contr =  (await t1.balanceOf(vestContractAddr)).toNumber();
+      const balt1acc1 =  (await t1.balanceOf(accounts[1])).toNumber();
+      console.log("balt1contr,balt1acc1", balt1contr,balt1acc1)
+  
       await vestContract.refund({from: accounts[1]});
-      
+      const balt1accAft1 =  (await t1.balanceOf(accounts[1])).toNumber();
+
+      balt1contr =  (await t1.balanceOf(vestContractAddr)).toNumber();
+      const balt1acc2 =  (await t1.balanceOf(accounts[2])).toNumber();
+      console.log("balt1accAft1, balt1contr,balt1acc2, ", balt1accAft1, balt1contr,balt1acc2)
+
       await vestContract.refund({from: accounts[2]});
+      const balt1accAft2 =  (await t1.balanceOf(accounts[2])).toNumber();
+      balt1contr =  (await t1.balanceOf(vestContractAddr)).toNumber();
+      const balt1acc3 =  (await t1.balanceOf(accounts[3])).toNumber();
+      console.log("balt1accAft2, balt1contr,balt1acc3, ", balt1accAft2, balt1contr,balt1acc3)
 
       await vestContract.refund({from: accounts[3]});
-
+      const balt1accAft3 =  (await t1.balanceOf(accounts[3])).toNumber();
+      balt1contr =  (await t1.balanceOf(vestContractAddr)).toNumber();
+      console.log("balt1accAft3, balt1contr ", balt1accAft3, balt1contr)
   
       });
 

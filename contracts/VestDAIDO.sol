@@ -26,6 +26,10 @@ contract VestDAIDO is i2SV {
     bool isConfigured;    
     uint256 raisedToken1; // sum raised in  token1
     uint256 raisedToken2;  // sum raised in  token2
+    uint256 withdrawedToken1; // sum withdrawed in  token1
+    uint256 withdrawedToken2;  // sum withdrawed in  token2
+
+
     Vesting public vest;
     
     Rule[] public rules; 
@@ -142,7 +146,7 @@ contract VestDAIDO is i2SV {
         require(_amount <= avAmount, "No enough amount for withdraw");
         
         withdrawed[vest.token1][vest.teamWallet] =  withdrawed[vest.token1][vest.teamWallet].add(_amount);
-       
+        withdrawedToken1 = withdrawedToken1.add(_amount);
         if (vest.isNative) {
             payable(vest.teamWallet).transfer(_amount);
         }
@@ -180,7 +184,7 @@ contract VestDAIDO is i2SV {
         uint256 avAmount = availableClaimToken2();
         require(_amount <= avAmount, "No enough amount for withdraw");
         withdrawed[vest.token2][msg.sender] = withdrawed[vest.token2][msg.sender].add(_amount);
-
+        withdrawedToken2 = withdrawedToken2.add(_amount);
         IERC20(vest.token2).transfer( msg.sender, _amount);
         emit Claimed(address(this), vest.token2, msg.sender, _amount);
     }
@@ -226,15 +230,14 @@ contract VestDAIDO is i2SV {
         uint256 avAmount1;
         //refund token1
         if (vested[vest.token1][msg.sender] > 0) { 
+            avAmount1 = raisedToken1 - withdrawedToken1;//address(this).balance;
             if (vest.isNative) {
                 // checking balance of ether
-                avAmount1 = address(this).balance;
                 avAmount1 = avAmount1.mul(vested[vest.token1][msg.sender]).div(vest.amount1);
                 payable(msg.sender).transfer(avAmount1);
             }
             else { 
                 // checking balance of ERc20 token
-                avAmount1 = IERC20(vest.token1).balanceOf(address(this));                
                 avAmount1 = avAmount1.mul(vested[vest.token1][msg.sender]).div(vest.amount1);
                 IERC20(vest.token1).transfer( msg.sender, avAmount1);
             }
@@ -242,7 +245,7 @@ contract VestDAIDO is i2SV {
         //refund token2 
         uint256 avAmount2;
         if (vested[vest.token2][msg.sender] > 0) { 
-            avAmount2 = IERC20(vest.token2).balanceOf(address(this));
+            avAmount2 = raisedToken2 - withdrawedToken2; //IERC20(vest.token2).balanceOf(address(this));
             avAmount2 = avAmount2.mul(vested[vest.token2][msg.sender]).div(vest.amount2);
             IERC20(vest.token2).transfer( msg.sender, avAmount2);
         }
