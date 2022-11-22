@@ -19,7 +19,7 @@ interface i2SVstruct {
         uint256 amount1; //total amount tokens of 1st side  that sends to  2nd side,  f.e. amount of team's token for this period that sends to investors
         uint256 amount2; // total amount tokens of 2st side  that sends to  1nd side,  f.e  amount of invested  token  that sends to team            
         uint256 softCap1; //total amount tokens of 1st side  that sends to  2nd side,  f.e. amount of team's token for this period that sends to investors
-        uint256 SoftCap2; // total amount tokens of 2st side  that sends to  1nd side,  f.e  amount of invested  token  that sends to team                        
+        uint256 softCap2; // total amount tokens of 2st side  that sends to  1nd side,  f.e  amount of invested  token  that sends to team                        
         address token1; //bought tokens
         address token2; //vested tokens,  if isNative ==true, must set to "0x1"
         uint256 startDate; 

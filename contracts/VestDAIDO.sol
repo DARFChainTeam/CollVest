@@ -14,6 +14,7 @@ contract VestDAIDO is i2SV {
     //    Statuses:     0-created, 10- capped , 20 - started, 100 - paused 200 - aborted, 255 - finished
 
     uint8 constant CREATED = 1;
+    uint8 constant SOFTCAPPED = 9;
     uint8 constant CAPPED = 10;
     uint8 constant STARTED = 20;
     uint8 constant PAUSED = 100;
@@ -95,6 +96,19 @@ contract VestDAIDO is i2SV {
         vested[_token][_recepient] = curVest;
         emit Vested(address(this), _token, msg.sender, _amount);
 
+        if (vest.softCap1 >0 && vest.softCap2 > 0 && //softCap case
+            raisedToken1 >= vest.softCap1 && 
+            raisedToken2 >= vest.softCap2 &&
+            ((vest.isNative && address(this).balance >=  vest.softCap1) ||
+            (!vest.isNative && IERC20(vest.token1).balanceOf(address(this)) >= vest.softCap1)) &&
+             IERC20(vest.token2).balanceOf(address(this)) >= vest.softCap2
+            ) {
+                status = SOFTCAPPED;
+                emit VestStatus(address(this),status);
+
+            }
+        
+
         if (raisedToken1 >= vest.amount1 && 
             raisedToken2 >= vest.amount2 &&
             ((vest.isNative && address(this).balance >=  vest.amount1) ||
@@ -102,12 +116,17 @@ contract VestDAIDO is i2SV {
              IERC20(vest.token2).balanceOf(address(this)) >= vest.amount2
             ) {
                 status = CAPPED;
-                emit VestStatus(address(this),CAPPED);
+                emit VestStatus(address(this),status);
 
             }
+        
  
         }
     
+    function startSoftCapped (bool _start )  public {
+        require(vested[vest.token1][msg.sender] > 0 && vested[vest.token2][msg.sender]>0 , "only vestor can start " );
+        if (status > SOFTCAPPED && _start /* && block.timestamp > vest.startDate */) status = STARTED;
+    }
 
     function isPaused () public view returns (bool) {
         for (uint8 i=0; i<pauses.length; i++){            
