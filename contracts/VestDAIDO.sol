@@ -74,15 +74,17 @@ contract VestDAIDO is i2SV {
     /// @param  _amount - sum of vesting payment in wei 
 
     /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
+    {
         (bool ok, uint256 curVest) =  vested[_token][_recepient].tryAdd(_amount);
         require(ok,  "curVest.tryAdd" );
-        if (curVest == _amount) vestors.push(_recepient);            
-            
+        if (curVest == _amount) vestors.push(_recepient);                      
         if (_token == vest.token1) {       
+            if (vest.maxBuy1 > 0) require(curVest <= vest.maxBuy1, "limit of vesting overquoted for this address" );
             if (vest.isNative){ // payments with native token                     
-
                 require(_amount == msg.value, "amount must be equal to sent ether");
+                if (vest.minBuy1 > 0)  require(msg.value >= vest.minBuy1, "amount must be greater minBuy");
             } else {
+                if (vest.minBuy1 > 0) require(_amount >= vest.minBuy1, "amount must be greater minBuy");
                 IERC20(_token).transferFrom(msg.sender, address(this), _amount);
             }
             raisedToken1 = raisedToken1.add( _amount);
@@ -92,16 +94,15 @@ contract VestDAIDO is i2SV {
             require(raisedToken2 <= vest.amount2, "Token2 capped");
             IERC20(_token).transferFrom(msg.sender, address(this), _amount);
         }
-                
+         
         vested[_token][_recepient] = curVest;
         emit Vested(address(this), _token, msg.sender, _amount);
-
-        if (vest.softCap1 >0 && vest.softCap2 > 0 && //softCap case
-            raisedToken1 >= vest.softCap1 && 
-            raisedToken2 >= vest.softCap2 &&
+    } 
+    {
+        if (vest.softCap1 >0 && //softCap case
+            raisedToken1 >= vest.softCap1 &&             
             ((vest.isNative && address(this).balance >=  vest.softCap1) ||
-            (!vest.isNative && IERC20(vest.token1).balanceOf(address(this)) >= vest.softCap1)) &&
-             IERC20(vest.token2).balanceOf(address(this)) >= vest.softCap2
+            (!vest.isNative && IERC20(vest.token1).balanceOf(address(this)) >= vest.softCap1))
             ) {
                 status = SOFTCAPPED;
                 emit VestStatus(address(this),status);
@@ -120,12 +121,14 @@ contract VestDAIDO is i2SV {
 
             }
         
- 
+    }
         }
     
     function startSoftCapped (bool _start )  public {
-        require(vested[vest.token1][msg.sender] > 0 && vested[vest.token2][msg.sender]>0 , "only vestor can start " );
-        if (status > SOFTCAPPED && _start /* && block.timestamp > vest.startDate */) status = STARTED;
+        require(vested[vest.token1][msg.sender] > 0 || vested[vest.token2][msg.sender]>0 , "only vestor can start " );
+        if (status >= SOFTCAPPED && _start ) status = STARTED;
+        emit VestStatus(address(this),status);
+
     }
 
     function isPaused () public view returns (bool) {
@@ -144,7 +147,8 @@ contract VestDAIDO is i2SV {
         if ( isPaused() ||  status == ABORTED || status < CAPPED)  return 0;
         for (uint8 i=0; i<rules.length; i++) { 
             if (rules[i].claimTime <= block.timestamp){
-                avAmount = avAmount.add(rules[i].amount1); 
+                uint256 inc = rules[i].amount1.mul(raisedToken1).div(vest.amount1);
+                avAmount = avAmount.add(inc);
            }
         }
           avAmount =  avAmount.sub(withdrawed[vest.token1][vest.teamWallet]);        
@@ -184,7 +188,9 @@ contract VestDAIDO is i2SV {
         if ( isPaused() ||  status == ABORTED || status < CAPPED)  return 0;
         for (uint8 i=0; i<rules.length; i++) { 
             if (rules[i].claimTime <= block.timestamp){
-                avAmount = avAmount.add(rules[i].amount2); 
+                uint256 inc = rules[i].amount2.mul(raisedToken2).div(vest.amount2);
+                avAmount = avAmount.add(inc); 
+                
            }
         }
             avAmount = avAmount.mul(vested[vest.token1][msg.sender]).div(raisedToken1);

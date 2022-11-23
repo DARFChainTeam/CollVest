@@ -46,6 +46,9 @@ let snapshotId;
      startVestConf = {
       amount1:300,
       amount2:1500,
+      softCap1:0,
+      minBuy1:0,
+      maxBuy1:0,
       token1: ETHCODE,
       token2: t2.address,
       pausePeriod:monthSecs,
