@@ -7,7 +7,7 @@ import "./i2SVstruct.sol";
 interface i2SV is i2SVstruct {
     
     function setVesting (    
-        Vesting calldata _vest,
+        Vesting calldata _vest,        
         Rule[] calldata _rules) external;
 
     function putVesting (address _token, address _recepient, uint256 _amount) external payable;

@@ -11,7 +11,7 @@ contract VestFactory  is i2SVstruct {
     function deployVest( 
         Rule[] calldata _rules,
         Vesting calldata _vestConf
-
+        
         
         )   public  {
             /// @notice Explain to an end user what this does
@@ -34,9 +34,9 @@ contract VestFactory  is i2SVstruct {
 
 
             VestDAIDO vsd = new VestDAIDO();
-            if (_vestConf.isNative ) vest.token1 = ETHCODE;
+            if (_vestConf.vest2.isNative ) vest.vest1.token1 = ETHCODE;
             vsd.setVesting (            
-                vest,
+                vest,                
                 _rules);
     //    }
         
