@@ -22,14 +22,16 @@ contract VestDAIDO is i2SV {
     uint8 constant VOTING = 150;
     uint8 constant ABORTED = 200;
     uint8 constant REFUNDING = 220;
-    
+    uint8 constant FINISHED = 255;
+
+
     uint8 public status ; // (1- created, 10- capped , 20 - started, 100 - paused 200 - aborted, 255 - finished )
     uint16 public votesForAbort;    
     bool isConfigured;    
-    uint256 raisedToken1; // sum raised in  token1
-    uint256 raisedToken2;  // sum raised in  token2
-    uint256 withdrawedToken1; // sum withdrawed in  token1
-    uint256 withdrawedToken2;  // sum withdrawed in  token2
+    uint256 public raisedToken1; // sum raised in  token1
+    uint256 public raisedToken2;  // sum raised in  token2
+    uint256 public withdrawedToken1; // sum withdrawed in  token1
+    uint256 public withdrawedToken2;  // sum withdrawed in  token2
 
 
     Vesting public vest;
@@ -76,7 +78,10 @@ contract VestDAIDO is i2SV {
     /// @param  _amount - sum of vesting payment in wei 
 
     /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
-    {
+    {   
+        if (vest.vest2.prevRound != address(ETHCODE) ) {
+            require (VestDAIDO(vest.vest2.prevRound).status() >=CAPPED, "Didn't finished previous round"); 
+        }
         (bool ok, uint256 curVest) =  vested[_token][_recepient].tryAdd(_amount);
         require(ok,  "curVest.tryAdd" );
         if (curVest == _amount) vestors.push(_recepient);                      
@@ -179,6 +184,10 @@ contract VestDAIDO is i2SV {
             IERC20(vest.vest1.token1).transfer(vest.vest2.teamWallet, _amount);            
          }
         emit Claimed(address(this), vest.vest1.token1, msg.sender, _amount);
+        if (raisedToken1 == withdrawedToken1 && raisedToken2 == withdrawedToken2) { 
+            status = FINISHED;
+            emit Finished (address(this));
+        }
     }
 
     function availableClaimToken2 () public view returns (uint256 avAmount) {
@@ -214,6 +223,11 @@ contract VestDAIDO is i2SV {
         withdrawedToken2 = withdrawedToken2.add(_amount);
         IERC20(vest.vest1.token2).transfer( msg.sender, _amount);
         emit Claimed(address(this), vest.vest1.token2, msg.sender, _amount);
+        if (raisedToken1 == withdrawedToken1 && raisedToken2 == withdrawedToken2) { 
+            status = FINISHED;
+            emit Finished (address(this));
+        }
+        
     }
     
 
