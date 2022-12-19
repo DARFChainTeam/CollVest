@@ -2,15 +2,16 @@ pragma solidity >=0.4.22 <0.9.0;
 import "./interfaces/i2SVstruct.sol";
 
 import "./VestDAIDO.sol";
+import "./VestCollateral.sol";
 
 
-contract VestFactory  is i2SVstruct {
-    event NewVesting(address, Rule[], Vesting);
+contract VestFactory {
+    event NewVesting(address, i2SVstruct.Rule[], i2SVstruct.Vesting);
     address constant ETHCODE = address(0x0000000000000000000000000000000000000001);
 
     function deployVest( 
-        Rule[] calldata _rules,
-        Vesting calldata _vestConf
+        i2SVstruct.Rule[] calldata _rules,
+        i2SVstruct.Vesting calldata _vestConf
         
         
         )   public  {
@@ -19,7 +20,7 @@ contract VestFactory  is i2SVstruct {
             /// @param Documents a parameter just like in doxygen (must be followed by parameter name)
             /// @return Documents the return variables of a contract’s function state variable
             /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
-        Vesting memory vest = _vestConf;
+        i2SVstruct.Vesting memory vest = _vestConf;
         /* Vesting(
           { amount1: _amount1, //total amount tokens of 1st side  that sends to  2nd side,  f.e. amount of team's token for this period that sends to investors.  
           amount2:  _amount2, // total amount tokens of 2st side  that sends to  1nd side,  f.e  amount of invested  token  that sends to team            
@@ -33,11 +34,20 @@ contract VestFactory  is i2SVstruct {
         //if (/* typeContract == "DAIDO" */true) {
 
 
-            VestDAIDO vsd = new VestDAIDO();
+
             if (_vestConf.vest2.isNative ) vest.vest1.token1 = ETHCODE;
-            vsd.setVesting (            
-                vest,                
-                _rules);
+            if (_vestConf.vest1.vestType == bytes32("DAIDO")) { 
+                VestDAIDO vsd = new VestDAIDO();
+                vsd.setVesting (            
+                    vest,                
+                    _rules);
+                    }
+            else if  (_vestConf.vest1.vestType == bytes32("Collateral")) { 
+                VestDAIDO vsd = new VestDAIDO();
+                vsd.setVesting (            
+                    vest,                
+                    _rules);
+                    }
     //    }
         
     }

@@ -26,7 +26,8 @@ interface i2SVstruct {
         uint256 maxBuy1; //maximum sum of vesting per address in token1
         address token1; //bought tokens
         address token2; //vested tokens,  if isNative ==true, must set to "0x1"
-    }
+        bytes32 vestType;
+        }
     struct Vesting2 {
         uint256 pausePeriod; // period that withdrawing cab be pauseped until voting;
         address teamWallet; //        
