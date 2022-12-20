@@ -1,14 +1,20 @@
 pragma solidity >=0.4.22 <0.9.0;
-import "./interfaces/i2SVstruct.sol";
+import "./interfaces/i2SV.sol";
+import "@openzeppelin/contracts/proxy/Clones.sol"; 
+import "@openzeppelin/contracts/access/Ownable.sol";
+// import "./VestDAIDO.sol";
+// import "./VestCollateral.sol";
 
-import "./VestDAIDO.sol";
-import "./VestCollateral.sol";
 
-
-contract VestFactory {
-    event NewVesting(address, i2SVstruct.Rule[], i2SVstruct.Vesting);
+contract VestFactory is Ownable {
+    event NewVesting(address,  i2SVstruct.Vesting, i2SVstruct.Rule[]);
     address constant ETHCODE = address(0x0000000000000000000000000000000000000001);
 
+    mapping (bytes10 => address) vestContracts;
+
+    function setContracts (bytes10 _name, address _contract) onlyOwner public {
+        vestContracts[_name] =  _contract;
+    }
     function deployVest( 
         i2SVstruct.Rule[] calldata _rules,
         i2SVstruct.Vesting calldata _vestConf
@@ -36,19 +42,16 @@ contract VestFactory {
 
 
             if (_vestConf.vest2.isNative ) vest.vest1.token1 = ETHCODE;
-            if (_vestConf.vest1.vestType == bytes32("DAIDO")) { 
-                VestDAIDO vsd = new VestDAIDO();
-                vsd.setVesting (            
+            
+            i2SV vsd = i2SV (Clones.clone(vestContracts[_vestConf.vest1.vestType]));
+                
+            vsd.setVesting (            
                     vest,                
                     _rules);
-                    }
-            else if  (_vestConf.vest1.vestType == bytes32("Collateral")) { 
-                VestDAIDO vsd = new VestDAIDO();
-                vsd.setVesting (            
-                    vest,                
-                    _rules);
-                    }
-    //    }
+
+            emit NewVesting(address(vsd), vest, _rules);
+    
+    //    
         
     }
 }
