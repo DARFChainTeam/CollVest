@@ -31,7 +31,9 @@ contract VestCollateral is i2SV {
     bool isConfigured;    
     uint256 public raisedToken1; // sum raised in  token1
     uint256 public raisedToken2;  // sum raised in  token2
+    uint256 public refundToken1;  // sum refunded token2 by borrower
     uint256 public withdrawedToken1; // sum withdrawed in  token1
+    uint256 public withdrawedRefund1; // sum withdrawed by creditor 
     uint256 public withdrawedToken2;  // sum withdrawed in  token2
 
 
@@ -93,7 +95,12 @@ contract VestCollateral is i2SV {
                 if (vest.vest1.minBuy1 > 0) require(_amount >= vest.vest1.minBuy1, "amount must be greater minBuy");
                 IERC20(_token).transferFrom(msg.sender, address(this), _amount);
             }
-            raisedToken1 = raisedToken1.add( _amount);
+            if (msg.sender != vest.vest2.teamWallet) {
+                raisedToken1 = raisedToken1.add( _amount);
+                }
+            else {
+                refundToken1 = refundToken1.add( _amount);
+            }
             require(raisedToken1 <= vest.vest1.amount1, "Token1 capped");
         } else if (_token == vest.vest1.token2)  {
             raisedToken2 = raisedToken2.add( _amount);
@@ -155,12 +162,12 @@ contract VestCollateral is i2SV {
 
         for (uint8 i=0; i<rules.length; i++) { 
             if (rules[i].claimTime <= block.timestamp){
-                uint256 inc = rules[i].amount1.mul(raisedToken1).div(vest.vest1.amount1);
+                uint256 inc = rules[i].amount1.mul(refundToken1).div(vest.vest1.amount1);
                 avAmount = avAmount.add(inc);
            }
         }
-               avAmount = avAmount.mul(vested[vest.vest1.token1][msg.sender]).div(raisedToken1);
-            avAmount = avAmount.sub(withdrawed[vest.vest1.token1][msg.sender]);       
+        avAmount = avAmount.mul(vested[vest.vest1.token1][msg.sender]).div(refundToken1);
+        avAmount = avAmount.sub(withdrawed[vest.vest1.token1][msg.sender]);       
     }
 
 
@@ -182,8 +189,9 @@ contract VestCollateral is i2SV {
         else { 
             IERC20(vest.vest1.token1).transfer(vest.vest2.teamWallet, _amount);            
          }
-        status = LOANWITHDRAWED;
+                
         emit Claimed(address(this), vest.vest1.token1, msg.sender, _amount);
+        if (raisedToken1 == withdrawedToken1) status = LOANWITHDRAWED;
 
     }
  
@@ -204,43 +212,63 @@ contract VestCollateral is i2SV {
                 
            }
         }
-            avAmount = avAmount.mul(vested[vest.vest1.token1][msg.sender]).div(raisedToken1);
+            avAmount = avAmount.mul(vested[vest.vest1.token1][msg.sender]).div(refundToken1);
             avAmount = avAmount.sub(withdrawed[vest.vest1.token2][msg.sender]);        
     } 
 
     function claimWithdrawToken2(uint256 _withdrAmount) public override { 
-        /// @notice withdraw _withdrAmount of ERC20 or native tokens.  In this version  uses for creditor to  side,, for legacy reasons, it try to withdraw to creditor token1 and, in amount is not enough - proportional sum of pledged token2 
+        /// @notice withdraw _withdrAmount of ERC20 or native tokens.  In this version  uses for creditor's side,, for legacy reasons, it try to withdraw to creditor token1 and, in amount is not enough - proportional sum of pledged token2 
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @param _withdrAmount - uint256 desired amount of  claiming token , 
 
-        require(status >= LOANWITHDRAWED,  "Loan didn't withdrawed");
+        // require(status >= LOANWITHDRAWED,  "Loan didn't withdrawed");
        
         uint256 avAmount = availableClaimToken1();
+        require(avAmount >= _withdrAmount, "Not enough amount for withdraw" );
         uint256 avAmount2 = availableClaimToken2();
         uint256 withdrAmount2 = _withdrAmount.mul(vest.vest1.amount2).div(vest.vest1.amount1);
-        if (vest.vest2.isNative && address(this).balance >= avAmount) {
-            payable(msg.sender).transfer(_withdrAmount);
-            emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
+        if (vest.vest2.isNative ) {
+            if (address(this).balance >= _withdrAmount) {
+                payable(msg.sender).transfer(_withdrAmount);
+                emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
+
+           } else {
+                _withdrAmount = address(this).balance;
+                payable(msg.sender).transfer(_withdrAmount);
+                emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
+                avAmount = _withdrAmount.mul(vest.vest1.amount2).div(vest.vest1.amount1);
+                withdrAmount2 = _withdrAmount.sub(avAmount);
+                IERC20(vest.vest1.token2).transfer( msg.sender, withdrAmount2);
+                emit Claimed(address(this), vest.vest1.token2, msg.sender, withdrAmount2);
+
+           }
         }
-        else if ( IERC20(vest.vest1.token1 ).balanceOf(address(this)) >= _withdrAmount){ 
-            IERC20(vest.vest1.token1).transfer(msg.sender, _withdrAmount);            
-            emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
-                     }
-        else if (avAmount2 <= IERC20(vest.vest1.token2 ).balanceOf(address(this)) && avAmount2 >= withdrAmount2) {
-            
-            IERC20(vest.vest1.token2).transfer( msg.sender, withdrAmount2);
-            emit Claimed(address(this), vest.vest1.token2, msg.sender, withdrAmount2);
+        else { 
+            if ( IERC20(vest.vest1.token1 ).balanceOf(address(this)) >= _withdrAmount){ 
+                IERC20(vest.vest1.token1).transfer(msg.sender, _withdrAmount);            
+                emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
+
+
+            } else {
+                _withdrAmount =  IERC20(vest.vest1.token1 ).balanceOf(address(this));
+                IERC20(vest.vest1.token1).transfer(msg.sender, _withdrAmount);            
+                emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
+                avAmount = _withdrAmount.mul(vest.vest1.amount2).div(vest.vest1.amount1);
+                withdrAmount2 = withdrAmount2.sub(avAmount);
+                IERC20(vest.vest1.token2).transfer( msg.sender, withdrAmount2);
+                emit Claimed(address(this), vest.vest1.token2, msg.sender, withdrAmount2);
+
+
+
+            }
         }
-        else  {
-            revert("Not available amount!!!");
-        }
+
         withdrawed[vest.vest1.token1][msg.sender] = withdrawed[vest.vest1.token1][msg.sender].add(_withdrAmount);
-        withdrawedToken1 = withdrawedToken1.add(_withdrAmount);
+        withdrawedRefund1 = withdrawedRefund1.add(_withdrAmount);
         withdrawed[vest.vest1.token2][msg.sender] = withdrawed[vest.vest1.token2][msg.sender].add(withdrAmount2);
         withdrawedToken2 = withdrawedToken2.add(withdrAmount2);
 
-        
-        if (raisedToken1 == withdrawedToken1 && raisedToken2 == withdrawedToken2) { 
+        if (raisedToken1 + refundToken1 == withdrawedToken1 && raisedToken2 == withdrawedToken2) { 
             status = FINISHED;
             emit Finished (address(this));
         }

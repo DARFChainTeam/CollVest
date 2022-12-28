@@ -165,60 +165,71 @@ let snapshotId;
 
     
 
-  it('withdraw t1 once approved amount 1period time', async () => {
+  it('withdraw t1 once all  amount by team', async () => {
 
-     // time shift 
-    var block = await web3.eth.getBlock("latest");
-    const timeShift =  monthSecs; // openingTime - block.timestamp 
-    await timeMachine.advanceTimeAndBlock(timeShift + 100);
-    block = await web3.eth.getBlock("latest");
-    assert (block.timestamp > new Date().getTime() / 1000 ,block.timestamp,  "time machine didn't works" )
-    // console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
-
+    
     const vestContract = await VestContract.at(vestContractAddr);
     const t1 =  await Token1.deployed();
 
     const balt1before1 =  (await t1.balanceOf(teamWallet)).toNumber();
-    
+/*     var raisedToken1 = (await vestContract.raisedToken1()).toNumber();
+    var raisedToken2 = (await vestContract.raisedToken2()).toNumber();
+    var withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
+    var withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
+ 
+    console.log (raisedToken1, raisedToken2,withdrawedToken1, withdrawedToken2  ) */
     await vestContract.claimWithdrawToken1( startVestConf.vest1.amount1, {from:teamWallet} ) ;
-    
+
+/*     raisedToken1 = (await vestContract.raisedToken1()).toNumber();
+    raisedToken2 = (await vestContract.raisedToken2()).toNumber();
+    withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
+    withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
+ 
+    console.log (raisedToken1, raisedToken2,withdrawedToken1, withdrawedToken2  ) */
+
     const balt1after1 =  (await t1.balanceOf(teamWallet)).toNumber();
 
     //assert.equal (balt1after1 - balt1before1,  av2claimt1, "balt1before1+ av2claimt1" );
+    raisedToken1 = (await vestContract.raisedToken1()).toNumber();
+    raisedToken2 = (await vestContract.raisedToken2()).toNumber();
+    refundToken1 = (await vestContract.refundToken1()).toNumber();
+    withdrawedRefund1 = (await vestContract.withdrawedRefund1()).toNumber();
 
-    av2claimt1 = (await vestContract.availableClaimToken1()).toNumber();
+    withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
+    withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
+ 
+    console.log (raisedToken1, raisedToken2, refundToken1 ) 
+    console.log (withdrawedToken1, withdrawedToken2,  withdrawedRefund1 ) 
 
-    assert.equal (av2claimt1, 0, "not all claimed ")
+    av2claimt1 = (await vestContract.status()).toNumber();
+
+    assert.equal (av2claimt1, 15, "not in LOANWITHDRAWED ")
 
     });
-  it('withdraw t2 once approved amount 1 period time', async () => {
 
-    // // console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
+    it('team`d to add  annuitet mayment to vesting contract', async () =>  {
+      const t1 = await Token1.deployed();
+  
+  
+      await t1.transfer(teamWallet, startVestConf.vest1.amount1 /3, {from:accounts[0]});
       
-    const vestContract = await VestContract.at(vestContractAddr);
-    //const t1 =  await Token1.deployed();
-    const t2 =  await Token2.deployed();
-
-
-    const balt2before1 =  (await  t2.balanceOf(accounts[1])).toNumber();
-    const vested1 = (await vestContract.getVestedTok1({from:accounts[1]})).toNumber();
-    let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[1]})).toNumber();
-
-    await vestContract.claimWithdrawToken2( av2claimt2, {from:accounts[1]} ) ;
-
-    assert.equal (av2claimt2, Math.floor(startVestConf.vest1.amount2 /periods * vested1 / startVestConf.vest1.amount1), "amount t2 1st month ")
-
-    const balt2after1 = (await  t2.balanceOf(accounts[1])).toNumber();
-
-    assert.equal (balt2after1 - balt2before1,  av2claimt2, "balt1before1+ av2claimt1" );
-
-    av2claimt2 = (await vestContract.availableClaimToken2()).toNumber();
-
-    assert.equal (av2claimt2, 0, "not all claimed T2")
+      await t1.approve(vestContractAddr, startVestConf.vest1.amount1 /3, {from:teamWallet});
+        
+      const vestContract = await VestContract.at(vestContractAddr);
+  
+      await vestContract.putVesting(startVestConf.vest1.token1, accounts[1], startVestConf.vest1.amount1 /3, {from:teamWallet} )
+      
+      raisedToken1 = (await vestContract.raisedToken1()).toNumber();
+      raisedToken2 = (await vestContract.raisedToken2()).toNumber();
+      withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
+      withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
+   
+      console.log (raisedToken1, raisedToken2,withdrawedToken1, withdrawedToken2  ) 
   
     });
 
-  it('withdraw t1 once approved amount 2nd period time', async () => {
+
+  it('withdraw t1 or t2 once approved amount 1 period time', async () => {
 
     // time shift 
     var block = await web3.eth.getBlock("latest");
@@ -227,26 +238,43 @@ let snapshotId;
     block = await web3.eth.getBlock("latest");
     assert (block.timestamp > new Date().getTime() / 1000 ,block.timestamp,  "time machine didn't works" )
     // console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
-
+   
     const vestContract = await VestContract.at(vestContractAddr);
     const t1 =  await Token1.deployed();
+    const t2 =  await Token2.deployed();
 
-    const balt1before1 =  (await t1.balanceOf(teamWallet)).toNumber();
-    
-    let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
-    assert.equal (av2claimt1, startVestConf.vest1.amount1 /3, "amount t1 2nd month ")
 
-    await vestContract.claimWithdrawToken1( av2claimt1 ) ;
-    
-    const balt1after1 =  (await t1.balanceOf(teamWallet)).toNumber();
+    const balt1before1 =  (await  t1.balanceOf(accounts[1])).toNumber();
+    const vested1 = (await vestContract.getVestedTok1({from:accounts[1]})).toNumber();
+    let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[1]})).toNumber();
+    let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[1]})).toNumber();
 
-    assert.equal (balt1after1 - balt1before1,  av2claimt1, "balt1before1+ av2claimt1" );
+    var raisedToken1 = (await vestContract.raisedToken1()).toNumber();
+    var raisedToken2 = (await vestContract.raisedToken2()).toNumber();
+    var withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
+    var withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
+    console.log (raisedToken1, raisedToken2,withdrawedToken1, withdrawedToken2  )
 
-    av2claimt1 = (await vestContract.availableClaimToken1()).toNumber();
+    await vestContract.claimWithdrawToken2( 33, {from:accounts[1]} ) ;
 
-    assert.equal (av2claimt1, 0, "not all claimed ")
+    raisedToken1 = (await vestContract.raisedToken1()).toNumber();
+    raisedToken2 = (await vestContract.raisedToken2()).toNumber();
+    withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
+    withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
+ 
+    console.log (raisedToken1, raisedToken2,withdrawedToken1, withdrawedToken2  )
 
+ 
+    const balt1after1 = (await  t1.balanceOf(accounts[1])).toNumber();
+
+    assert.equal (balt1after1 - balt1before1,  33, "balt1before1+ av2claimt1" );
+
+    av2claimt2 = (await vestContract.availableClaimToken2()).toNumber();
+
+     assert.equal (av2claimt2, 0, "not all claimed T2 ", av2claimt2)
+  
     });
+
   it('withdraw t2 once approved amount 2nd period time', async () => {
 
     // // console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
@@ -258,75 +286,37 @@ let snapshotId;
 
     const balt2before1 =  (await  t2.balanceOf(accounts[1])).toNumber();
     const vested1 = (await vestContract.getVestedTok1({from:accounts[1]})).toNumber();
+    raisedToken1 = (await vestContract.raisedToken1()).toNumber();
+    raisedToken2 = (await vestContract.raisedToken2()).toNumber();
+    refundToken1 = (await vestContract.refundToken1()).toNumber();
+    withdrawedRefund1 = (await vestContract.withdrawedRefund1()).toNumber();
+
+    withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
+    withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
+ 
+    console.log (raisedToken1, raisedToken2, refundToken1 ) 
+    console.log (withdrawedToken1, withdrawedToken2,  withdrawedRefund1 ) 
+
+    let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[1]})).toNumber();
+
     let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[1]})).toNumber();
 
+    await vestContract.claimWithdrawToken2( av2claimt1, {from:accounts[1]} ) ;
+    
+    assert (withdrawedRefund1- (await vestContract.withdrawedRefund1()).toNumber(), 0, "withdrawedRefund1" );
+    assert (withdrawedToken2- (await vestContract.withdrawedToken2()).toNumber(), 165, "withdrawedRefund1" );
 
-    await vestContract.claimWithdrawToken2( av2claimt2, {from:accounts[1]} ) ;
+
+    withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
+    withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
+ 
+    console.log (raisedToken1, raisedToken2, refundToken1 ) 
+    console.log (withdrawedToken1, withdrawedToken2,  withdrawedRefund1 ) 
+
     const balt2after1 = (await  t2.balanceOf(accounts[1])).toNumber();
 
-
-    assert.equal (av2claimt2, Math.round(startVestConf.vest1.amount2 /periods * vested1 / startVestConf.vest1.amount1), "amount t2 1st month ")
-    assert.equal (balt2after1 - balt2before1,  av2claimt2, "balt1before1+ av2claimt1" );
-
-    av2claimt2 = (await vestContract.availableClaimToken2()).toNumber();
-
-    assert.equal (av2claimt2, 0, "not all claimed T2")
-
     });
-  it('withdraw t1 once approved amount 3d period time', async () => {
 
-    // time shift 
-    var block = await web3.eth.getBlock("latest");
-    const timeShift =  monthSecs; // openingTime - block.timestamp 
-    await timeMachine.advanceTimeAndBlock(timeShift + 100);
-    block = await web3.eth.getBlock("latest");
-    assert (block.timestamp > new Date().getTime() / 1000 ,block.timestamp,  "time machine didn't works" )
-    // console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
-
-    const vestContract = await VestContract.at(vestContractAddr);
-    const t1 =  await Token1.deployed();
-
-    const balt1before1 =  (await t1.balanceOf(teamWallet)).toNumber();
-    
-    let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
-    assert.equal (av2claimt1, startVestConf.vest1.amount1 /3, "amount t1 3d month ")
-
-    await vestContract.claimWithdrawToken1( av2claimt1 ) ;
-    
-    const balt1after1 =  (await t1.balanceOf(teamWallet)).toNumber();
-
-    assert.equal (balt1after1 - balt1before1,  av2claimt1, "balt1before1+ av2claimt1" );
-
-    av2claimt1 = (await vestContract.availableClaimToken1()).toNumber();
-
-    assert.equal (av2claimt1, 0, "not all claimed ")
-    });
-  it('withdraw t2 once approved amount 3d  period time', async () => {
-
-    // // console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
-    
-    const vestContract = await VestContract.at(vestContractAddr);
-  // const t1 =  await Token1.deployed();
-     const t2 =  await Token2.deployed();
-
-
-    const balt2before1 =  (await  t2.balanceOf(accounts[1])).toNumber();
-    const vested1 = (await vestContract.getVestedTok1({from:accounts[1]})).toNumber();
-    let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[1]})).toNumber();
-
-    
-    await vestContract.claimWithdrawToken2( av2claimt2, {from:accounts[1]} ) ;
-    const balt2after1 = (await  t2.balanceOf(accounts[1])).toNumber();
-
-    assert.equal (balt2after1 - balt2before1,  av2claimt2, "balt1before1+ av2claimt1" );
-    assert.equal (av2claimt2, Math.round(startVestConf.vest1.amount2 /periods * vested1 / startVestConf.vest1.amount1), "amount t2 1st month ")
-
-    av2claimt2 = (await vestContract.availableClaimToken2()).toNumber();
-
-    assert.equal (av2claimt2, 0, "not all claimed T2")
-
-    
-    });
 
     it('restoring chain ', async () => {
       await timeMachine.revertToSnapshot(snapshotId);
