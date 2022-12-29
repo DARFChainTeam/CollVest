@@ -268,7 +268,7 @@ contract VestCollateral is i2SV {
         withdrawed[vest.vest1.token2][msg.sender] = withdrawed[vest.vest1.token2][msg.sender].add(withdrAmount2);
         withdrawedToken2 = withdrawedToken2.add(withdrAmount2);
 
-        if (raisedToken1 + refundToken1 == withdrawedToken1 && raisedToken2 == withdrawedToken2) { 
+        if (raisedToken1 <= refundToken1 || raisedToken1 <= refundToken1.add(  withdrawedToken2.mul(vest.vest1.amount1).div(vest.vest1.amount2)) ) { 
             status = FINISHED;
             emit Finished (address(this));
         }
@@ -306,28 +306,16 @@ contract VestCollateral is i2SV {
     }
 
     function refund () public {
-        require(status == ABORTED , "Vesting works normally, can't refund" );
-        uint256 avAmount1;
-        //refund token1
-        if (vested[vest.vest1.token1][msg.sender] > 0) { 
-            avAmount1 = raisedToken1 - withdrawedToken1;//address(this).balance;
-            if (vest.vest2.isNative) {
-                // checking balance of ether
-                avAmount1 = avAmount1.mul(vested[vest.vest1.token1][msg.sender]).div(vest.vest1.amount1);
-                payable(msg.sender).transfer(avAmount1);
-            }
-            else { 
-                // checking balance of ERc20 token
-                avAmount1 = avAmount1.mul(vested[vest.vest1.token1][msg.sender]).div(vest.vest1.amount1);
-                IERC20(vest.vest1.token1).transfer( msg.sender, avAmount1);
-            }
-        }
+        require(status == FINISHED , "not finished yet, can't refund" );
+
         //refund token2 
         uint256 avAmount2;
         if (vested[vest.vest1.token2][msg.sender] > 0) { 
             avAmount2 = raisedToken2 - withdrawedToken2; //IERC20(vest.vest1.token2).balanceOf(address(this));
             avAmount2 = avAmount2.mul(vested[vest.vest1.token2][msg.sender]).div(vest.vest1.amount2);
             IERC20(vest.vest1.token2).transfer( msg.sender, avAmount2);
+        } else {
+            revert ("no token2 invested from this address");
         }
     }
 
