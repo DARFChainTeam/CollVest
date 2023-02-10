@@ -16,7 +16,7 @@ const pausePeriod =  monthSecs;
 const vestShare4pauseWithdraw =5 ;
 const voteShareAbort = 75;
 const isNative = 1 ;
-//const teamWallet = 0; //account [0];
+//const borrowerWallet = 0; //account [0];
  */
 
 const now =  new Date().getTime() / 1000; //secs unix epoch
@@ -30,7 +30,7 @@ const vestRules = [{amount1: 100, amount2: 500, claimTime: Math.floor(now + mont
 
 contract('dSV 2side vesting contract both ERC20 tokens with collateral', (accounts) => {
 
-const teamWallet  = accounts[9];
+const borrowerWallet  = accounts[9];
 
 var vestContractAddr;
 var  startVestConf;
@@ -59,7 +59,7 @@ let snapshotId;
         },
     vest2: {      
         pausePeriod:monthSecs,
-        teamWallet: teamWallet,
+        borrowerWallet: borrowerWallet,
         vestShare4pauseWithdraw: 5,
         voteShareAbort:75, 
         isNative: false,
@@ -126,24 +126,24 @@ let snapshotId;
     const t2 = await Token2.deployed();
   //  const balance = await t2.balanceOf(accounts[0])
 
-    await t2.transfer(teamWallet, startVestConf.vest1.amount2);
-    const balance = (await t2.balanceOf(teamWallet)).toNumber();
+    await t2.transfer(borrowerWallet, startVestConf.vest1.amount2);
+    const balance = (await t2.balanceOf(borrowerWallet)).toNumber();
     assert.equal(balance, startVestConf.vest1.amount2, "didn't transfer startVestConf.vest1.amount2");
 
 
     const vestContract = await VestContract.at(vestContractAddr);
     const balanceT2_9= (await t2.balanceOf(accounts[9])).toNumber();;
 
-    await t2.approve(vestContractAddr,startVestConf.vest1.amount2, {from:teamWallet});
-    await vestContract.putVesting(t2.address, teamWallet, startVestConf.vest1.amount2 /2 , {from:teamWallet} )
+    await t2.approve(vestContractAddr,startVestConf.vest1.amount2, {from:borrowerWallet});
+    await vestContract.putVesting(t2.address, borrowerWallet, startVestConf.vest1.amount2 /2 , {from:borrowerWallet} )
     
     // const allowanceT2 =  ( await t2.allowance(accounts[0], vestContractAddr )).toNumber();
     await t2.approve(vestContractAddr,startVestConf.vest1.amount2, {from:accounts[0]});
 
     //TODO - strange bug, cant invest from acc[0]
-    await vestContract.putVesting(t2.address, teamWallet, startVestConf.vest1.amount2/2, {from: accounts[0]});
+    await vestContract.putVesting(t2.address, borrowerWallet, startVestConf.vest1.amount2/2, {from: accounts[0]});
 
-    const vested9 = await vestContract.getVestedTok2( {from: teamWallet} ); 
+    const vested9 = await vestContract.getVestedTok2( {from: borrowerWallet} ); 
     assert.equal(startVestConf.vest1.amount2, vested9/* [1] */.toNumber(), "vested9");
 
 
@@ -171,14 +171,14 @@ let snapshotId;
     const vestContract = await VestContract.at(vestContractAddr);
     const t1 =  await Token1.deployed();
 
-    const balt1before1 =  (await t1.balanceOf(teamWallet)).toNumber();
+    const balt1before1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
 /*     var raisedToken1 = (await vestContract.raisedToken1()).toNumber();
     var raisedToken2 = (await vestContract.raisedToken2()).toNumber();
     var withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
     var withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
  
     console.log (raisedToken1, raisedToken2,withdrawedToken1, withdrawedToken2  ) */
-    await vestContract.claimWithdrawToken1( startVestConf.vest1.amount1, {from:teamWallet} ) ;
+    await vestContract.claimWithdrawToken1( startVestConf.vest1.amount1, {from:borrowerWallet} ) ;
 
 /*     raisedToken1 = (await vestContract.raisedToken1()).toNumber();
     raisedToken2 = (await vestContract.raisedToken2()).toNumber();
@@ -187,7 +187,7 @@ let snapshotId;
  
     console.log (raisedToken1, raisedToken2,withdrawedToken1, withdrawedToken2  ) */
 
-    const balt1after1 =  (await t1.balanceOf(teamWallet)).toNumber();
+    const balt1after1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
 
     //assert.equal (balt1after1 - balt1before1,  av2claimt1, "balt1before1+ av2claimt1" );
     raisedToken1 = (await vestContract.raisedToken1()).toNumber();
@@ -211,13 +211,13 @@ let snapshotId;
       const t1 = await Token1.deployed();
   
   
-      await t1.transfer(teamWallet, startVestConf.vest1.amount1 /3, {from:accounts[0]});
+      await t1.transfer(borrowerWallet, startVestConf.vest1.amount1 /3, {from:accounts[0]});
       
-      await t1.approve(vestContractAddr, startVestConf.vest1.amount1 /3, {from:teamWallet});
+      await t1.approve(vestContractAddr, startVestConf.vest1.amount1 /3, {from:borrowerWallet});
         
       const vestContract = await VestContract.at(vestContractAddr);
   
-      await vestContract.putVesting(startVestConf.vest1.token1, teamWallet, startVestConf.vest1.amount1 /3, {from:teamWallet} )
+      await vestContract.putVesting(startVestConf.vest1.token1, borrowerWallet, startVestConf.vest1.amount1 /3, {from:borrowerWallet} )
       
       raisedToken1 = (await vestContract.raisedToken1()).toNumber();
       raisedToken2 = (await vestContract.raisedToken2()).toNumber();
@@ -329,7 +329,7 @@ let snapshotId;
     console.log ("statusVest:", statusVest)
   
     try {
-      await vestContract.refund({from: teamWallet});
+      await vestContract.refund({from: borrowerWallet});
     }
     catch (e) {
       //// console.log(e)
@@ -436,11 +436,11 @@ let snapshotId;
       assert (statusVest, 255, "finished");
     
       let balt1contr =  (await t1.balanceOf(vestContractAddr)).toNumber();
-      const balt1acc1 =  (await t1.balanceOf(teamWallet)).toNumber();
+      const balt1acc1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
       // console.log("balt1contr,balt1acc1", balt1contr,balt1acc1)
   
-      await vestContract.refund({from: teamWallet});
-      const balt1accAft1 =  (await t1.balanceOf(teamWallet)).toNumber();
+      await vestContract.refund({from: borrowerWallet});
+      const balt1accAft1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
 
       balt1contr =  (await t1.balanceOf(vestContractAddr)).toNumber();
       const balt1acc2 =  (await t1.balanceOf(accounts[2])).toNumber();

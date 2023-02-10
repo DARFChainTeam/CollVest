@@ -16,7 +16,7 @@ const pausePeriod =  monthSecs;
 const vestShare4pauseWithdraw =5 ;
 const voteShareAbort = 75;
 const isNative = 1 ;
-//const teamWallet = 0; //account [0];
+//const borrowerWallet = 0; //account [0];
  */
 
 const now =  new Date().getTime() / 1000; //secs unix epoch
@@ -34,7 +34,7 @@ const vestRules2 = [{amount1: 100, amount2: 500, claimTime: Math.floor(now + mon
 
 contract('dSV 2side vesting contract both ERC20 tokens', (accounts) => {
 
-const teamWallet  = accounts[9];
+const borrowerWallet  = accounts[9];
 
 var vestContractAddr;
 var vestContractAddr2;
@@ -62,7 +62,7 @@ let snapshotId;
         },
     vest2: {      
         pausePeriod:monthSecs,
-        teamWallet: teamWallet,
+        borrowerWallet: borrowerWallet,
         vestShare4pauseWithdraw: 5,
         voteShareAbort:75, 
         isNative: false,
@@ -109,7 +109,7 @@ let snapshotId;
         },
     vest2: {      
         pausePeriod:monthSecs,
-        teamWallet: teamWallet,
+        borrowerWallet: borrowerWallet,
         vestShare4pauseWithdraw: 5,
         voteShareAbort:75, 
         isNative: false,
@@ -195,24 +195,24 @@ let snapshotId;
     const t2 = await Token2.deployed();
   //  const balance = await t2.balanceOf(accounts[0])
 
-    await t2.transfer(teamWallet, startVestConf.vest1.amount2);
-    const balance = (await t2.balanceOf(teamWallet)).toNumber();
+    await t2.transfer(borrowerWallet, startVestConf.vest1.amount2);
+    const balance = (await t2.balanceOf(borrowerWallet)).toNumber();
     assert.equal(balance, startVestConf.vest1.amount2, "didn't transfer startVestConf.vest1.amount2");
 
 
     const vestContract = await VestContract.at(vestContractAddr);
     const balanceT2_9= (await t2.balanceOf(accounts[9])).toNumber();;
 
-    await t2.approve(vestContractAddr,startVestConf.vest1.amount2, {from:teamWallet});
-    await vestContract.putVesting(t2.address, teamWallet, startVestConf.vest1.amount2 /2 , {from:teamWallet} )
+    await t2.approve(vestContractAddr,startVestConf.vest1.amount2, {from:borrowerWallet});
+    await vestContract.putVesting(t2.address, borrowerWallet, startVestConf.vest1.amount2 /2 , {from:borrowerWallet} )
     
     // const allowanceT2 =  ( await t2.allowance(accounts[0], vestContractAddr )).toNumber();
     await t2.approve(vestContractAddr,startVestConf.vest1.amount2, {from:accounts[0]});
 
     //TODO - strange bug, cant invest from acc[0]
-    await vestContract.putVesting(t2.address, teamWallet, startVestConf.vest1.amount2/2, {from: accounts[0]});
+    await vestContract.putVesting(t2.address, borrowerWallet, startVestConf.vest1.amount2/2, {from: accounts[0]});
 
-    const vested9 = await vestContract.getVestedTok2( {from: teamWallet} ); 
+    const vested9 = await vestContract.getVestedTok2( {from: borrowerWallet} ); 
     assert.equal(startVestConf.vest1.amount2, vested9/* [1] */.toNumber(), "vested9");
 
 
@@ -245,14 +245,14 @@ let snapshotId;
     const vestContract = await VestContract.at(vestContractAddr);
     const t1 =  await Token1.deployed();
 
-    const balt1before1 =  (await t1.balanceOf(teamWallet)).toNumber();
+    const balt1before1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
     
     let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
     assert.equal (av2claimt1, startVestConf.vest1.amount1 /3, "amount t1 1st month ")
 
     await vestContract.claimWithdrawToken1( av2claimt1 ) ;
     
-    const balt1after1 =  (await t1.balanceOf(teamWallet)).toNumber();
+    const balt1after1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
 
     assert.equal (balt1after1 - balt1before1,  av2claimt1, "balt1before1+ av2claimt1" );
 
@@ -317,14 +317,14 @@ let snapshotId;
     const vestContract = await VestContract.at(vestContractAddr);
     const t1 =  await Token1.deployed();
 
-    const balt1before1 =  (await t1.balanceOf(teamWallet)).toNumber();
+    const balt1before1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
     
     let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
     assert.equal (av2claimt1, startVestConf.vest1.amount1 /3, "amount t1 2nd month ")
 
     await vestContract.claimWithdrawToken1( av2claimt1 ) ;
     
-    const balt1after1 =  (await t1.balanceOf(teamWallet)).toNumber();
+    const balt1after1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
 
     assert.equal (balt1after1 - balt1before1,  av2claimt1, "balt1before1+ av2claimt1" );
 
@@ -386,14 +386,14 @@ let snapshotId;
     const vestContract = await VestContract.at(vestContractAddr);
     const t1 =  await Token1.deployed();
 
-    const balt1before1 =  (await t1.balanceOf(teamWallet)).toNumber();
+    const balt1before1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
     
     let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
     assert.equal (av2claimt1, startVestConf.vest1.amount1 /3, "amount t1 3d month ")
 
     await vestContract.claimWithdrawToken1( av2claimt1 ) ;
     
-    const balt1after1 =  (await t1.balanceOf(teamWallet)).toNumber();
+    const balt1after1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
 
     assert.equal (balt1after1 - balt1before1,  av2claimt1, "balt1before1+ av2claimt1" );
 
@@ -480,24 +480,24 @@ let snapshotId;
       const t2 = await Token2.deployed();
     //  const balance = await t2.balanceOf(accounts[0])
   
-      await t2.transfer(teamWallet, startVestConf.vest1.amount2);
-      const balance = (await t2.balanceOf(teamWallet)).toNumber();
+      await t2.transfer(borrowerWallet, startVestConf.vest1.amount2);
+      const balance = (await t2.balanceOf(borrowerWallet)).toNumber();
    //   assert.equal(balance, startVestConf.vest1.amount2 , "didn't transfer startVestConf.vest1.amount2");
   
   
       const vestContract = await VestContract.at(vestContractAddr2);
       const balanceT2_9= (await t2.balanceOf(accounts[9])).toNumber();;
   
-      await t2.approve(vestContractAddr2,startVestConf.vest1.amount2, {from:teamWallet});
-      await vestContract.putVesting(t2.address, teamWallet, startVestConf.vest1.amount2 /2 , {from:teamWallet} )
+      await t2.approve(vestContractAddr2,startVestConf.vest1.amount2, {from:borrowerWallet});
+      await vestContract.putVesting(t2.address, borrowerWallet, startVestConf.vest1.amount2 /2 , {from:borrowerWallet} )
       
       // const allowanceT2 =  ( await t2.allowance(accounts[0], vestContractAddr2 )).toNumber();
       await t2.approve(vestContractAddr2,startVestConf.vest1.amount2, {from:accounts[0]});
   
       //TODO - strange bug, cant invest from acc[0]
-      await vestContract.putVesting(t2.address, teamWallet, startVestConf.vest1.amount2/2, {from: accounts[0]});
+      await vestContract.putVesting(t2.address, borrowerWallet, startVestConf.vest1.amount2/2, {from: accounts[0]});
   
-      const vested9 = await vestContract.getVestedTok2( {from: teamWallet} ); 
+      const vested9 = await vestContract.getVestedTok2( {from: borrowerWallet} ); 
       assert.equal(startVestConf.vest1.amount2, vested9/* [1] */.toNumber(), "vested9");
   
   
@@ -537,7 +537,7 @@ let snapshotId;
    const vestContract = await VestContract.at(vestContractAddr2);
    const t1 =  await Token1.deployed();
 
-   const balt1before1 =  (await t1.balanceOf(teamWallet)).toNumber();
+   const balt1before1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
    
    let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
    
@@ -553,7 +553,7 @@ let snapshotId;
    assert.equal (av2claimt1, startVestConf.vest1.amount1  /3, "amount t1 1st month ")
 
    
-   const balt1after1 =  (await t1.balanceOf(teamWallet)).toNumber();
+   const balt1after1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
 
    assert.equal (balt1after1 - balt1before1,  av2claimt1, "balt1before1+ av2claimt1" );
 
@@ -602,14 +602,14 @@ let snapshotId;
    const vestContract = await VestContract.at(vestContractAddr2);
    const t1 =  await Token1.deployed();
 
-   const balt1before1 =  (await t1.balanceOf(teamWallet)).toNumber();
+   const balt1before1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
    
    let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
    assert.equal (av2claimt1, startVestConf.vest1.amount1 /3, "amount t1 2nd month ")
 
    await vestContract.claimWithdrawToken1( av2claimt1 ) ;
    
-   const balt1after1 =  (await t1.balanceOf(teamWallet)).toNumber();
+   const balt1after1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
 
    assert.equal (balt1after1 - balt1before1,  av2claimt1, "balt1before1+ av2claimt1" );
 
@@ -657,14 +657,14 @@ let snapshotId;
    const vestContract = await VestContract.at(vestContractAddr2);
    const t1 =  await Token1.deployed();
 
-   const balt1before1 =  (await t1.balanceOf(teamWallet)).toNumber();
+   const balt1before1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
    
    let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
    assert.equal (av2claimt1, startVestConf.vest1.amount1 /3, "amount t1 3d month ")
 
    await vestContract.claimWithdrawToken1( av2claimt1 ) ;
    
-   const balt1after1 =  (await t1.balanceOf(teamWallet)).toNumber();
+   const balt1after1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
 
    assert.equal (balt1after1 - balt1before1,  av2claimt1, "balt1before1+ av2claimt1" );
 

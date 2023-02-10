@@ -27,14 +27,16 @@ interface i2SVstruct {
         address token1; //bought tokens
         address token2; //vested tokens,  if isNative ==true, must set to "0x1"
         bytes10 vestType;
+        uint256 token2Id;
         }
     struct Vesting2 {
         uint256 pausePeriod; // period that withdrawing cab be pauseped until voting;
-        address teamWallet; //        
+        address borrowerWallet; //        
         uint8 vestShare4pauseWithdraw; //share in percents of raised,  needed to be vested to  pause (to avoid greenmailer' dust attacks)
         uint8 voteShareAbort; //share in percents of stakes needed to approve voting in this vesting
         bool isNative; // true if this vesting uses blockchain native token to vest, f.e. ETH in Ethereum mainnet       
         address prevRound;
+        uint256 penalty;
         
     } 
 

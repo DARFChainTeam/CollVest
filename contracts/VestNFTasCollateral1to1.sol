@@ -4,18 +4,22 @@ pragma solidity >=0.4.22 <0.9.0;
 import "./interfaces/i2SV.sol";
 import "./interfaces/IERC20.sol";
 import "./libs/SafeMath.sol";
+
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 /// @title Typical DAIDO vesting contract
 /// @author The name of the author
 /// @notice Explain to an end user what this does 
 /// @dev Explain to a developer any extra details
-contract VestCollateral is i2SV {
+contract VestNFTasCollateral1to1 is i2SV, IERC721Receiver  {
     using SafeMath for uint256;
 
     //    Statuses:     0-created, 10- capped , 20 - started, 100 - paused 200 - aborted, 255 - finished
 
     uint8 constant CREATED = 1;
     uint8 constant OPENED = 5;
-    // uint8 constant SOFTCAPPED = 9;
+    uint8 constant BORROWERFUNDED = 7;
+    uint8 constant SOFTCAPPED = 9;
     uint8 constant CAPPED = 10;
     uint8 constant LOANWITHDRAWED = 15;
     uint8 constant STARTED = 20;
@@ -25,6 +29,7 @@ contract VestCollateral is i2SV {
     uint8 constant REFUNDING = 220;
     uint8 constant FINISHED = 255;
 
+    bool isFundedFromBorrower = false;
 
     uint8 public status ; // (1- created, 10- capped , 20 - started, 100 - paused 200 - aborted, 255 - finished )
     uint16 public votesForAbort;    
@@ -72,86 +77,50 @@ contract VestCollateral is i2SV {
         emit VestStatus(address(this),CREATED);
         }
     
-    
     function putVesting (address _token, address _recepient, uint256 _amount) public override  payable {
     /// @notice accepts vesting payments from both sides 
     /// @dev divides for native and ERC20 flows
     /// @param  _token - address of payment token,  "0x01" for native blockchain tokens 
     /// @param  _recepient - address of wallet, who can claim tokens
     /// @param  _amount - sum of vesting payment in wei 
-
-    /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
-    {   
-
-        (bool ok, uint256 curVest) =  vested[_token][_recepient].tryAdd(_amount);
-        require(ok,  "curVest.tryAdd" );
-        if (curVest == _amount) vestors.push(_recepient);                      
-        if (_token == vest.vest1.token1) {       
-            if (vest.vest1.maxBuy1 > 0) require(curVest <= vest.vest1.maxBuy1, "limit of vesting overquoted for this address" );
-            if (vest.vest2.isNative){ // payments with native token                     
-                require(_amount == msg.value, "amount must be equal to sent ether");
-                if (vest.vest1.minBuy1 > 0)  require(msg.value >= vest.vest1.minBuy1, "amount must be greater minBuy");
-            } else {
-                if (vest.vest1.minBuy1 > 0) require(_amount >= vest.vest1.minBuy1, "amount must be greater minBuy");
-                IERC20(_token).transferFrom(msg.sender, address(this), _amount);
-            }
-            if (msg.sender != vest.vest2.borrowerWallet) {
-                raisedToken1 = raisedToken1.add( _amount);
+        if (msg.sender == vest.vest2.borrowerWallet) { ///@notice team vests NFT as collateral
+            if (IERC721(vest.vest1.token2).ownerOf(vest.vest1.token2Id) == address(this)){
+                    status = BORROWERFUNDED; ///@notice borrower already sent NFT to us
+                    isFundedFromBorrower = true;
                 }
             else {
-                refundToken1 = refundToken1.add( _amount);
+                IERC721(vest.vest1.token2).safeTransferFrom(msg.sender , address(this), vest.vest1.token2Id);
+                status = BORROWERFUNDED;
+
+                }
+            emit Vested(address(this), vest.vest1.token2, msg.sender, vest.vest1.token2Id);
+
             }
-            require(raisedToken1 <= vest.vest1.amount1, "Token1 capped");
-        } else if (_token == vest.vest1.token2)  {
-            raisedToken2 = raisedToken2.add( _amount);
-            require(raisedToken2 <= vest.vest1.amount2, "Token2 capped");
-            IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+        else {
+            uint256 amount = vest.vest1.amount1;
+            (bool ok, uint256 curVest) =  vested[vest.vest1.token1][_recepient].tryAdd(amount);
+            require(ok,  "curVest.tryAdd" );
+            if (curVest == _amount) vestors.push(_recepient);                      
+           
+            if (vest.vest2.isNative){ // payments with native token                     
+                require(amount == msg.value, "amount must be equal to sent ether");
+            } else {
+                IERC20(vest.vest1.token1).transferFrom(msg.sender, address(this), amount);
+            }
+            if (msg.sender != vest.vest2.borrowerWallet) {
+                raisedToken1 = raisedToken1.add( amount);
+                }
+            else {
+                refundToken1 = refundToken1.add( amount);
+            }
+            vested[_token][_recepient] = curVest;
+            emit Vested(address(this), _token, msg.sender, _amount);
         }
-         
-        vested[_token][_recepient] = curVest;
-        emit Vested(address(this), _token, msg.sender, _amount);
-    } 
-    {
-/*         if (vest.vest1.softCap1 >0 && //softCap case
-            raisedToken1 >= vest.vest1.softCap1 &&             
-            ((vest.vest2.isNative && address(this).balance >=  vest.vest1.softCap1) ||
-            (!vest.vest2.isNative && IERC20(vest.vest1.token1).balanceOf(address(this)) >= vest.vest1.softCap1))
-            ) {
-                status = SOFTCAPPED;
-                emit VestStatus(address(this),status);
-
-            } */
-        
-
-        if (raisedToken1 >= vest.vest1.amount1 && 
-            raisedToken2 >= vest.vest1.amount2 &&
-            ((vest.vest2.isNative && address(this).balance >=  vest.vest1.amount1) ||
-            (!vest.vest2.isNative && IERC20(vest.vest1.token1).balanceOf(address(this)) >= vest.vest1.amount1)) &&
-             IERC20(vest.vest1.token2).balanceOf(address(this)) >= vest.vest1.amount2
-            ) {
-                status = CAPPED;
-                emit VestStatus(address(this),status);
-
-            }
-        
     }
-        }
-    
-/*     function startSoftCapped (bool _start )  public {
-        require(vested[vest.vest1.token1][msg.sender] > 0 || vested[vest.vest1.token2][msg.sender]>0 , "only vestor can start " );
-        if (status >= SOFTCAPPED && _start ) status = STARTED;
-        emit VestStatus(address(this),status);
 
-    } 
 
-    function isPaused () public view returns (bool) {
-        for (uint8 i=0; i<pauses.length; i++){            
-            if (pauses[i].pauseTime > 0 && block.timestamp < pauses[i].pauseTime+vest.vest2.pausePeriod) return true;
-        }
-        return false;
-    } 
 
-*/
+
     function availableClaimToken1 () public view returns (uint256 avAmount) {
         /// @notice calculates  available amount of token1 for claiming by team
         /// @dev in web3-like libs call with {from} key!
@@ -196,7 +165,22 @@ contract VestCollateral is i2SV {
     }
  
 
- /// @notice  
+    function calcAmountandPenalty () public view returns (uint256 avAmount, uint256 penalty) {
+        uint lastPaymentAmount;
+
+        if ( status == ABORTED || status < LOANWITHDRAWED)  return (0, 0);
+            for (uint8 i=0; i<rules.length; i++) { 
+                if (rules[i].claimTime <= block.timestamp){                
+                    avAmount = avAmount.add(rules[i].amount2); 
+                    lastPaymentAmount = rules[i].amount2;
+            }
+            }
+            avAmount = avAmount.sub(refundToken1);
+            if (avAmount > lastPaymentAmount) {
+                // penalty here
+                penalty = vest.vest2.penalty; 
+            }
+    }
 
     function availableClaimToken2 () public view returns (uint256 avAmount) {
         /// @notice calculates  available amount of token2 for claiming by vestors
@@ -204,16 +188,13 @@ contract VestCollateral is i2SV {
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @return uint256- available amount of _token for claiming 
         /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
-        if ( status == ABORTED || status < LOANWITHDRAWED)  return 0;
-        for (uint8 i=0; i<rules.length; i++) { 
-            if (rules[i].claimTime <= block.timestamp){
-                uint256 inc = rules[i].amount2.mul(raisedToken2).div(vest.vest1.amount2);
-                avAmount = avAmount.add(inc); 
-                
-           }
-        }
-            avAmount = avAmount.sub(refundToken1).mul(vested[vest.vest1.token1][msg.sender]).div(raisedToken1);
-            avAmount = avAmount.sub(withdrawed[vest.vest1.token2][msg.sender]);        
+     
+        (uint256 avAmountin, uint256 penalty) = calcAmountandPenalty();
+        avAmount = avAmountin.add(penalty);
+        avAmount = avAmount.mul(vested[vest.vest1.token1][msg.sender]).div(raisedToken1);
+        
+        avAmount = avAmount.sub(withdrawed[vest.vest1.token2][msg.sender]);        
+
     } 
 
     function claimWithdrawToken2(uint256 _withdrAmount) public override { 
@@ -326,6 +307,13 @@ contract VestCollateral is i2SV {
         return (vested[vest.vest1.token2][msg.sender]);
     }
 
-    
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    )  external returns (bytes4) {
+        return this.onERC721Received.selector;
+    }
 
 }

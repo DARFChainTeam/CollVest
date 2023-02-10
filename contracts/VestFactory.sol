@@ -36,7 +36,7 @@ contract VestFactory is Ownable {
           vestShare4pauseWithdraw: _vestShare4pauseWithdraw, // share in sale to vestor can pause withdraw 
           voteShareAbort: _voteShareAbort, //share of stakes needed to approve voting in this vesting
           isNative:_isNative, // true if this vesting uses blockchain native token to vest, f.e. ETH in Ethereum mainnet
-          teamWallet:  address of team's wallet }); */
+          borrowerWallet:  address of team's wallet }); */
         //if (/* typeContract == "DAIDO" */true) {
 
 
