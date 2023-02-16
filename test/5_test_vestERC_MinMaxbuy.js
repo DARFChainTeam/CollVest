@@ -54,7 +54,9 @@ let snapshotId;
         minBuy1:30,
         maxBuy1:200,
         token1: t1.address,
-        token2: t2.address 
+        token2: t2.address,
+        token2Id: 0, 
+        vestType: web3.utils.asciiToHex("DAIDO")         
         },
       vest2: {      
         pausePeriod:monthSecs,
@@ -62,7 +64,9 @@ let snapshotId;
         vestShare4pauseWithdraw: 5,
         voteShareAbort:75, 
         isNative: false,
-        prevRound:ETHCODE //noprevround
+        prevRound:ETHCODE, //noprevround
+        penalty: 0,
+        penalty_period: 0        
        }
     }
     

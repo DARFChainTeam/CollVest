@@ -55,6 +55,7 @@ let snapshotId;
         maxBuy1:0,
         token1: t1.address,
         token2: t2.address,
+        token2Id: 0, 
         vestType: web3.utils.asciiToHex('Collateral')
         },
     vest2: {      
@@ -63,7 +64,9 @@ let snapshotId;
         vestShare4pauseWithdraw: 5,
         voteShareAbort:75, 
         isNative: false,
-        prevRound:ETHCODE //noprevround
+        prevRound:ETHCODE, //noprevround
+        penalty: 0,
+        penalty_period: 0                
        }
     }
     
@@ -247,7 +250,7 @@ let snapshotId;
     const balt1before1 =  (await  t1.balanceOf(accounts[1])).toNumber();
     const vested1 = (await vestContract.getVestedTok1({from:accounts[1]})).toNumber();
     let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[1]})).toNumber();
-    let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[1]})).toNumber();
+    // let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[1]})).toNumber();
 
     var raisedToken1 = (await vestContract.raisedToken1()).toNumber();
     var raisedToken2 = (await vestContract.raisedToken2()).toNumber();

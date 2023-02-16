@@ -10,9 +10,9 @@ contract VestFactory is Ownable {
     event NewVesting(address,  i2SVstruct.Vesting, i2SVstruct.Rule[]);
     address constant ETHCODE = address(0x0000000000000000000000000000000000000001);
 
-    mapping (bytes10 => address) vestContracts;
+    mapping (bytes => address) vestContracts;
 
-    function setContracts (bytes10 _name, address _contract) onlyOwner public {
+    function setContracts (bytes calldata  _name, address _contract) onlyOwner public {
         vestContracts[_name] =  _contract;
     }
     function deployVest( 

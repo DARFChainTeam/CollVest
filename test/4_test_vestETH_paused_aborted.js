@@ -52,7 +52,9 @@ it('Deploy test  2side vesting contract ', async () => {
       minBuy1:0,
       maxBuy1:0,
       token1: ETHCODE,
-      token2: t2.address 
+      token2: t2.address,
+      token2Id: 0, 
+      vestType: web3.utils.asciiToHex("DAIDO")      
       },
     vest2: {      
       pausePeriod:monthSecs,
@@ -60,7 +62,9 @@ it('Deploy test  2side vesting contract ', async () => {
       vestShare4pauseWithdraw: 5,
       voteShareAbort:75, 
       isNative: true,
-      prevRound:ETHCODE //no prev round
+      prevRound:ETHCODE, //no prev round
+      penalty: 0,
+      penalty_period: 0      
      }
   }
   const txDepl = await dSVFact.deployVest (

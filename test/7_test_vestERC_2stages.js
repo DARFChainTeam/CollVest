@@ -58,7 +58,9 @@ let snapshotId;
         minBuy1:0,
         maxBuy1:0,
         token1: t1.address,
-        token2: t2.address 
+        token2: t2.address, 
+        token2Id: 0, 
+        vestType: web3.utils.asciiToHex("DAIDO")        
         },
     vest2: {      
         pausePeriod:monthSecs,
@@ -66,7 +68,9 @@ let snapshotId;
         vestShare4pauseWithdraw: 5,
         voteShareAbort:75, 
         isNative: false,
-        prevRound:ETHCODE //noprevround
+        prevRound:ETHCODE ,//noprevround
+        penalty: 0,
+        penalty_period: 0        
        }
         }
     
@@ -105,7 +109,9 @@ let snapshotId;
         minBuy1:0,
         maxBuy1:0,
         token1: t1.address,
-        token2: t2.address 
+        token2: t2.address ,
+        token2Id: 0, 
+        vestType: web3.utils.asciiToHex("DAIDO")        
         },
     vest2: {      
         pausePeriod:monthSecs,
@@ -113,7 +119,9 @@ let snapshotId;
         vestShare4pauseWithdraw: 5,
         voteShareAbort:75, 
         isNative: false,
-        prevRound:vestContractAddr
+        prevRound:vestContractAddr,
+        penalty: 0,
+        penalty_period: 0              
        }
         }
     

@@ -40,6 +40,7 @@ contract VestNFTasCollateral1to1 is i2SV, IERC721Receiver  {
     uint256 public withdrawedToken1; // sum withdrawed in  token1
     uint256 public withdrawedRefund1; // sum withdrawed by creditor 
     uint256 public withdrawedToken2;  // sum withdrawed in  token2
+    uint256 lastPaymentDate;
 
 
     Vesting public vest;
@@ -112,6 +113,7 @@ contract VestNFTasCollateral1to1 is i2SV, IERC721Receiver  {
                 }
             else {
                 refundToken1 = refundToken1.add( amount);
+                lastPaymentDate = block.timestamp;
             }
             vested[_token][_recepient] = curVest;
             emit Vested(address(this), _token, msg.sender, _amount);
@@ -198,15 +200,16 @@ contract VestNFTasCollateral1to1 is i2SV, IERC721Receiver  {
     } 
 
     function claimWithdrawToken2(uint256 _withdrAmount) public override { 
-        /// @notice withdraw _withdrAmount of ERC20 or native tokens.  In this version  uses for creditor's side,, for legacy reasons, it try to withdraw to creditor token1 and, in amount is not enough - proportional sum of pledged token2 
-        /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
+        /// @notice withdraw _withdrAmount of ERC20 or native tokens.  In this version  uses for creditor's side, for legacy reasons, it try to withdraw to creditor token1 and, in amount is not enough - proportional sum of pledged token2 
+  
         /// @param _withdrAmount - uint256 desired amount of  claiming token , 
 
         // require(status >= LOANWITHDRAWED,  "Loan didn't withdrawed");
        
-        uint256 avAmount = availableClaimToken1();
-        require(avAmount >= _withdrAmount, "Not enough amount for withdraw" );
-        uint256 avAmount2 = availableClaimToken2();
+        // uint256 avAmount = availableClaimToken1();
+        (uint256 avAmount, uint256 penalty) = calcAmountandPenalty();
+        require(avAmount >= _withdrAmount, "No available amount for withdraw" );
+
         uint256 withdrAmount2 = _withdrAmount.mul(vest.vest1.amount2).div(vest.vest1.amount1);
         if (vest.vest2.isNative ) {
             if (address(this).balance >= _withdrAmount) {
@@ -217,11 +220,11 @@ contract VestNFTasCollateral1to1 is i2SV, IERC721Receiver  {
                 _withdrAmount = address(this).balance;
                 payable(msg.sender).transfer(_withdrAmount);
                 emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
-                avAmount = _withdrAmount.mul(vest.vest1.amount2).div(vest.vest1.amount1);
-                withdrAmount2 = _withdrAmount.sub(avAmount);
-                IERC20(vest.vest1.token2).transfer( msg.sender, withdrAmount2);
-                emit Claimed(address(this), vest.vest1.token2, msg.sender, withdrAmount2);
-
+                if (penalty > 0 && block.timestamp - lastPaymentDate > vest.vest2.penalty_period ) { ///@notice creditor get NFT pledge 
+               
+                    IERC721(vest.vest1.token2).transferFrom(address(this), msg.sender, vest.vest1.token2Id);
+                    emit Claimed(address(this), vest.vest1.token2, msg.sender, vest.vest1.token2Id);
+                }
            }
         }
         else { 
@@ -234,11 +237,11 @@ contract VestNFTasCollateral1to1 is i2SV, IERC721Receiver  {
                 _withdrAmount =  IERC20(vest.vest1.token1 ).balanceOf(address(this));
                 IERC20(vest.vest1.token1).transfer(msg.sender, _withdrAmount);            
                 emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
-                avAmount = _withdrAmount.mul(vest.vest1.amount2).div(vest.vest1.amount1);
-                withdrAmount2 = withdrAmount2.sub(avAmount);
-                IERC20(vest.vest1.token2).transfer( msg.sender, withdrAmount2);
-                emit Claimed(address(this), vest.vest1.token2, msg.sender, withdrAmount2);
-
+                if (penalty > 0 && block.timestamp - lastPaymentDate > vest.vest2.penalty_period ) { ///@notice creditor get NFT pledge 
+               
+                    IERC721(vest.vest1.token2).transferFrom(address(this), msg.sender, vest.vest1.token2Id);
+                    emit Claimed(address(this), vest.vest1.token2, msg.sender, vest.vest1.token2Id);
+                }
 
 
             }
@@ -287,17 +290,11 @@ contract VestNFTasCollateral1to1 is i2SV, IERC721Receiver  {
     }
 
     function refund () public {
+        /// @notice returning NFT to borrower if all ok
+        
         require(status == FINISHED , "not finished yet, can't refund" );
+          IERC721(vest.vest1.token2).safeTransferFrom( address(this), vest.vest2.borrowerWallet,  vest.vest1.token2Id);
 
-        //refund token2 
-        uint256 avAmount2;
-        if (vested[vest.vest1.token2][msg.sender] > 0) { 
-            avAmount2 = raisedToken2 - withdrawedToken2; //IERC20(vest.vest1.token2).balanceOf(address(this));
-            avAmount2 = avAmount2.mul(vested[vest.vest1.token2][msg.sender]).div(vest.vest1.amount2);
-            IERC20(vest.vest1.token2).transfer( msg.sender, avAmount2);
-        } else {
-            revert ("no token2 invested from this address");
-        }
     }
 
     function getVestedTok1 () public view returns (uint256) {
