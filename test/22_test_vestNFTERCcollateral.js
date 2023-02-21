@@ -1,11 +1,12 @@
 /* eslint-disable no-undef */
 const timeMachine = require('ganache-time-traveler');
 const VestFactory = artifacts.require("VestFactory");
-const VestContract = artifacts.require("VestCollateral");
+const VestContract = artifacts.require("VestNFTasCollateral1to1");
 const Token1 = artifacts.require("Token1");
-const Token2 = artifacts.require("Token2");
+const Token2 = artifacts.require("TokenNFT");
 
 const monthSecs = 365.25 /12 *60*60*24;
+const daySecs = 60*60*24;
 const periods = 3 
 const ETHCODE =  web3.utils.toChecksumAddress ('0x0000000000000000000000000000000000000001');
 /* const amount1 = 300; toBN
@@ -21,9 +22,9 @@ const isNative = 1 ;
 
 const now =  new Date().getTime() / 1000; //secs unix epoch
 
-const vestRules = [{amount1: 100, amount2: 500, claimTime: Math.floor(now + monthSecs)},
-                   {amount1: 100, amount2: 500, claimTime: Math.floor(now + monthSecs*2)},
-                   {amount1: 100, amount2: 500, claimTime: Math.floor(now + monthSecs*3)}
+const vestRules = [{amount1: 100, amount2: 0, claimTime: Math.floor(now + monthSecs)},
+                   {amount1: 100, amount2: 0, claimTime: Math.floor(now + monthSecs*2)},
+                   {amount1: 100, amount2: 0, claimTime: Math.floor(now + monthSecs*3)}
                 ];
 
 
@@ -49,20 +50,20 @@ let snapshotId;
     startVestConf = {
       vest1: {
         amount1:300,
-        amount2:1500,
+        amount2:0,
         softCap1:0,
         minBuy1:0,
         maxBuy1:0,
         token1: t1.address,
         token2: t2.address,
-        token2Id: 0, 
-        vestType: web3.utils.asciiToHex('Collateral')
+        token2Id: 1, 
+        vestType: web3.utils.asciiToHex('NFTCollateral121')
         },
     vest2: {      
         pausePeriod:monthSecs,
         borrowerWallet: borrowerWallet,
-        vestShare4pauseWithdraw: 5,
-        voteShareAbort:75, 
+        vestShare4pauseWithdraw: 0,
+        voteShareAbort:0, 
         isNative: false,
         prevRound:ETHCODE, //noprevround
         penalty: 0,
@@ -91,66 +92,56 @@ let snapshotId;
   });
 
 
-  it('should send amount1 of token1 to  vesting contract', async () => {
-    const t1 = await Token1.deployed();
 
-
-    await t1.transfer(accounts[1], startVestConf.vest1.amount1 /3, {from:accounts[0]});
-    await t1.transfer(accounts[2], startVestConf.vest1.amount1 /3, {from:accounts[0]});
-    await t1.transfer(accounts[3], startVestConf.vest1.amount1 /3, {from:accounts[0]});
-    
-    await t1.approve(vestContractAddr, startVestConf.vest1.amount1 /3, {from:accounts[1]});
-    await t1.approve(vestContractAddr, startVestConf.vest1.amount1 /3, {from:accounts[2]});
-    await t1.approve(vestContractAddr, startVestConf.vest1.amount1 /3, {from:accounts[3]});
-
-    const vestContract = await VestContract.at(vestContractAddr);
-
-    await vestContract.putVesting(startVestConf.vest1.token1, accounts[1], startVestConf.vest1.amount1 /3, {from:accounts[1], value:startVestConf.vest1.amount1 /3} )
-    await vestContract.putVesting(startVestConf.vest1.token1, accounts[2], startVestConf.vest1.amount1 /3, {from:accounts[2], value:startVestConf.vest1.amount1 /3} )
-    await vestContract.putVesting(startVestConf.vest1.token1, accounts[3], startVestConf.vest1.amount1 /3, {from:accounts[3], value:startVestConf.vest1.amount1 /3} )
-
-
-    const vested1 = await vestContract.getVestedTok1( {from: accounts[1]} ); 
-    const vested2 = await vestContract.getVestedTok1( {from: accounts[2]} ); 
-    const vested3 = await vestContract.getVestedTok1( {from: accounts[3]} ); 
-
-    assert.equal(startVestConf.vest1.amount1/periods, vested1.toNumber(), "vested1");
-    assert.equal(startVestConf.vest1.amount1/periods, vested2.toNumber(), "vested2");
-    assert.equal(startVestConf.vest1.amount1/periods, vested3.toNumber(), "vested3");
-
-  });
-
-    
-
-  it('should send amount2 of token2 to  vesting contract', async () => {
+  it('should send NFT as token2 to  vesting contract', async () => {
     // let snapshot = await timeMachine.takeSnapshot();
     // snapshotId = snapshot['result'];
 
     const t2 = await Token2.deployed();
   //  const balance = await t2.balanceOf(accounts[0])
-
-    await t2.transfer(borrowerWallet, startVestConf.vest1.amount2);
+    t2.approve(borrowerWallet,startVestConf.vest1.token2Id )
+    await t2.transferFrom(accounts[0], borrowerWallet , startVestConf.vest1.token2Id);
     const balance = (await t2.balanceOf(borrowerWallet)).toNumber();
-    assert.equal(balance, startVestConf.vest1.amount2, "didn't transfer startVestConf.vest1.amount2");
+    assert.equal(balance, 1, "didn't transfer startVestConf.vest1.amount2");
 
 
     const vestContract = await VestContract.at(vestContractAddr);
+
+
     const balanceT2_9= (await t2.balanceOf(accounts[9])).toNumber();;
 
-    await t2.approve(vestContractAddr,startVestConf.vest1.amount2, {from:borrowerWallet});
-    await vestContract.putVesting(t2.address, borrowerWallet, startVestConf.vest1.amount2 /2 , {from:borrowerWallet} )
-    
-    // const allowanceT2 =  ( await t2.allowance(accounts[0], vestContractAddr )).toNumber();
-    await t2.approve(vestContractAddr,startVestConf.vest1.amount2, {from:accounts[0]});
-
-    //TODO - strange bug, cant invest from acc[0]
-    await vestContract.putVesting(t2.address, borrowerWallet, startVestConf.vest1.amount2/2, {from: accounts[0]});
+    await t2.approve(vestContractAddr,startVestConf.vest1.token2Id, {from:borrowerWallet});
+    await vestContract.putVesting(t2.address, borrowerWallet, startVestConf.vest1.token2Id , {from:borrowerWallet} )
 
     const vested9 = await vestContract.getVestedTok2( {from: borrowerWallet} ); 
-    assert.equal(startVestConf.vest1.amount2, vested9/* [1] */.toNumber(), "vested9");
-
+    assert.equal(1, vested9/* [1] */.toNumber(), "vested9");
 
   });
+
+
+  it('should send amount1 of token1 to  vesting contract', async () => {
+    const t1 = await Token1.deployed();
+
+
+    await t1.transfer(accounts[1], startVestConf.vest1.amount1 , {from:accounts[0]});
+
+    
+    await t1.approve(vestContractAddr, startVestConf.vest1.amount1 , {from:accounts[1]});
+
+
+    const vestContract = await VestContract.at(vestContractAddr);
+
+    await vestContract.putVesting(startVestConf.vest1.token1, accounts[1], startVestConf.vest1.amount1, {from:accounts[1], value:startVestConf.vest1.amount1} )
+
+
+    const vested1 = await vestContract.getVestedTok1( {from: accounts[1]} ); 
+
+
+    assert.equal(startVestConf.vest1.amount1, vested1.toNumber(), "vested1");
+
+  });
+
+    
 
 
   it('vesting funded', async () => {
@@ -162,7 +153,7 @@ let snapshotId;
     const balt2_c = (await  t2.balanceOf(vestContractAddr)).toNumber();
     
 
-    assert.equal(10, status2SV.toNumber(), "vested status");
+    assert.equal( status2SV.toNumber(), 10, "vested status");
 
   });
 
@@ -170,7 +161,6 @@ let snapshotId;
 
   it('withdraw t1 once all  amount by team', async () => {
 
-    
     const vestContract = await VestContract.at(vestContractAddr);
     const t1 =  await Token1.deployed();
 
@@ -232,22 +222,25 @@ let snapshotId;
     });
 
 
-  it('withdraw t1 or t2 once approved amount 1 period time', async () => {
+  it('withdraw t1 by vestor once approved amount 1 period time', async () => {
 
     // time shift 
     var block = await web3.eth.getBlock("latest");
-    const timeShift =  monthSecs; // openingTime - block.timestamp 
-    await timeMachine.advanceTimeAndBlock(timeShift + 100);
+    const timeShift =  monthSecs + daySecs*2; // openingTime - block.timestamp 
+    await timeMachine.advanceTimeAndBlock(timeShift);
     block = await web3.eth.getBlock("latest");
     assert (block.timestamp > new Date().getTime() / 1000 ,block.timestamp,  "time machine didn't works" )
-    // console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
-   
+    console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
+    console.log (new Date(vestRules[0].claimTime * 1000).toLocaleDateString("en-US") )
+
     const vestContract = await VestContract.at(vestContractAddr);
     const t1 =  await Token1.deployed();
     const t2 =  await Token2.deployed();
 
 
     const balt1before1 =  (await  t1.balanceOf(accounts[1])).toNumber();
+    const balt1vestbefore1 =  (await  t1.balanceOf(vestContractAddr)).toNumber();
+
     const vested1 = (await vestContract.getVestedTok1({from:accounts[1]})).toNumber();
     let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[1]})).toNumber();
     // let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[1]})).toNumber();
@@ -257,8 +250,10 @@ let snapshotId;
     var withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
     var withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
     console.log (raisedToken1, raisedToken2,withdrawedToken1, withdrawedToken2  )
-
-    await vestContract.claimWithdrawToken2( 33, {from:accounts[1]} ) ;
+    var ampenalty = (await vestContract.calcAmountandPenalty())
+    console.log(ampenalty[0].toNumber(), ampenalty[1].toNumber() )
+    const status2SV = (await vestContract.status()).toNumber();
+    await vestContract.claimWithdrawToken2( 100, {from:accounts[1]} ) ;
 
     raisedToken1 = (await vestContract.raisedToken1()).toNumber();
     raisedToken2 = (await vestContract.raisedToken2()).toNumber();
@@ -269,8 +264,10 @@ let snapshotId;
 
  
     const balt1after1 = (await  t1.balanceOf(accounts[1])).toNumber();
+    const balt1vestafter1 =  (await  t1.balanceOf(vestContractAddr)).toNumber();
 
-    assert.equal (balt1after1 - balt1before1,  33, "balt1before1+ av2claimt1" );
+    assert.equal (balt1after1 - balt1before1,  100, "balt1before1+ av2claimt1" );
+    assert.equal (balt1vestbefore1 - balt1vestafter1,  100, "balt1before1 vest contract" );
 
     av2claimt2 = (await vestContract.availableClaimToken2()).toNumber();
 
@@ -280,7 +277,7 @@ let snapshotId;
 
   it('withdraw t2 once approved amount 2nd period time', async () => {
 
-    // // console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
+    // console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
       
     const vestContract = await VestContract.at(vestContractAddr);
     // const t1 =  await Token1.deployed();
@@ -300,16 +297,14 @@ let snapshotId;
     console.log (raisedToken1, raisedToken2, refundToken1 ) 
     console.log (withdrawedToken1, withdrawedToken2,  withdrawedRefund1 ) 
 
-   //  let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[1]})).toNumber();
+    // let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[1]})).toNumber();
 
     let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[1]})).toNumber();
 
     await vestContract.claimWithdrawToken2( av2claimt2, {from:accounts[1]} ) ;
     
-    assert (withdrawedRefund1- (await vestContract.withdrawedRefund1()).toNumber(), 0, "withdrawedRefund1" );
-    assert (withdrawedToken2- (await vestContract.withdrawedToken2()).toNumber(), 165, "withdrawedRefund1" );
-
-
+    assert ((withdrawedRefund1, await vestContract.withdrawedRefund1()).toNumber(), "withdrawedRefund1" );
+   
     withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
     withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
  
@@ -364,80 +359,39 @@ let snapshotId;
       console.log (raisedToken1, raisedToken2, refundToken1 ) 
       console.log (withdrawedToken1, withdrawedToken2,  withdrawedRefund1 ) 
   
-     //  let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[2]})).toNumber();
+      // let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[2]})).toNumber();
   
       let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[2]})).toNumber();
   
       await vestContract.claimWithdrawToken2( av2claimt2, {from:accounts[2]} ) ;
       
-      assert (withdrawedRefund1- (await vestContract.withdrawedRefund1()).toNumber(), 0, "withdrawedRefund1" );
-      assert (withdrawedToken2- (await vestContract.withdrawedToken2()).toNumber(), 165, "withdrawedRefund1" );
+      assert (withdrawedRefund1, (await vestContract.withdrawedRefund1()).toNumber(), "withdrawedRefund1" );
   
   
       withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
       withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
-    
+
+
       console.log (raisedToken1, raisedToken2, refundToken1 ) 
       console.log (withdrawedToken1, withdrawedToken2,  withdrawedRefund1 ) 
   
       const balt2after1 = (await  t2.balanceOf(accounts[2])).toNumber();
   
       });
-  it('withdraw t2 once all from acc3', async () => {
-
-        // // console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
-          
-        const vestContract = await VestContract.at(vestContractAddr);
-        // const t1 =  await Token1.deployed();
-        const t2 =  await Token2.deployed();
-    
-    
-        const balt2before1 =  (await  t2.balanceOf(accounts[3])).toNumber();
-        const vested1 = (await vestContract.getVestedTok1({from:accounts[3]})).toNumber();
-        raisedToken1 = (await vestContract.raisedToken1()).toNumber();
-        raisedToken2 = (await vestContract.raisedToken2()).toNumber();
-        refundToken1 = (await vestContract.refundToken1()).toNumber();
-        withdrawedRefund1 = (await vestContract.withdrawedRefund1()).toNumber();
-    
-        withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
-        withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
-      
-        console.log (raisedToken1, raisedToken2, refundToken1 ) 
-        console.log (withdrawedToken1, withdrawedToken2,  withdrawedRefund1 ) 
-    
-       //  let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[3]})).toNumber();
-    
-        let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[3]})).toNumber();
-    
-        await vestContract.claimWithdrawToken2( av2claimt2, {from:accounts[3]} ) ;
-        const withdrawedRefund1after =  (await vestContract.withdrawedRefund1()).toNumber()
-        const withdrawedToken2after =  (await vestContract.withdrawedToken2()).toNumber()
-        assert (withdrawedRefund1, withdrawedRefund1after, "withdrawedRefund1" );
-        assert (withdrawedToken2- withdrawedToken2after, 165, "withdrawedRefund1" );
-    
-    
-        withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
-        withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
-      
-        console.log (raisedToken1, raisedToken2, refundToken1 ) 
-        console.log (withdrawedToken1, withdrawedToken2,  withdrawedRefund1 ) 
-    
-        const balt2after1 = (await  t2.balanceOf(accounts[3])).toNumber();
-    
-        });
 
   it('try to  refund  all investors withdrawed () ', async () => {
 
       const vestContract = await VestContract.at(vestContractAddr);
       const t1 =  await Token1.deployed();
     
-  
-  
-
       const statusVest = (await vestContract.status()).toNumber();
   
       assert (statusVest, 255, "finished");
-    
+      raisedToken1 = (await vestContract.raisedToken1()).toNumber();
+      raisedToken2 = (await vestContract.raisedToken2()).toNumber();
+      refundToken1 = (await vestContract.refundToken1()).toNumber();
+      withdrawedRefund1 = (await vestContract.withdrawedRefund1()).toNumber();
+
       let balt1contr =  (await t1.balanceOf(vestContractAddr)).toNumber();
       const balt1acc1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
       // console.log("balt1contr,balt1acc1", balt1contr,balt1acc1)

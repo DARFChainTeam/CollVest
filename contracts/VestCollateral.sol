@@ -212,7 +212,7 @@ contract VestCollateral is i2SV {
                 
            }
         }
-            avAmount = avAmount.sub(refundToken1).mul(vested[vest.vest1.token1][msg.sender]).div(raisedToken1);
+            avAmount = avAmount.sub(refundToken1).mul(vested[vest.vest1.token1][msg.sender]).div(raisedToken1); //todo check withdrawedRefund1 or  refundToken1
             avAmount = avAmount.sub(withdrawed[vest.vest1.token2][msg.sender]);        
     } 
 
@@ -223,9 +223,11 @@ contract VestCollateral is i2SV {
 
         // require(status >= LOANWITHDRAWED,  "Loan didn't withdrawed");
        
-        uint256 avAmount = availableClaimToken1();
+        // uint256 avAmount = availableClaimToken1();
+        
+        uint256 avAmount = availableClaimToken2();
         require(avAmount >= _withdrAmount, "Not enough amount for withdraw" );
-        uint256 avAmount2 = availableClaimToken2();
+        
         uint256 withdrAmount2 = _withdrAmount.mul(vest.vest1.amount2).div(vest.vest1.amount1);
         if (vest.vest2.isNative ) {
             if (address(this).balance >= _withdrAmount) {
