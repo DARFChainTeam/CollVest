@@ -10,9 +10,9 @@ contract VestFactory is Ownable {
     event NewVesting(address,  i2SVstruct.Vesting, i2SVstruct.Rule[]);
     address constant ETHCODE = address(0x0000000000000000000000000000000000000001);
 
-    mapping (bytes10 => address) vestContracts;
+    mapping (bytes => address) vestContracts;
 
-    function setContracts (bytes10 _name, address _contract) onlyOwner public {
+    function setContracts (bytes calldata  _name, address _contract) onlyOwner public {
         vestContracts[_name] =  _contract;
     }
     function deployVest( 
@@ -36,7 +36,7 @@ contract VestFactory is Ownable {
           vestShare4pauseWithdraw: _vestShare4pauseWithdraw, // share in sale to vestor can pause withdraw 
           voteShareAbort: _voteShareAbort, //share of stakes needed to approve voting in this vesting
           isNative:_isNative, // true if this vesting uses blockchain native token to vest, f.e. ETH in Ethereum mainnet
-          teamWallet:  address of team's wallet }); */
+          borrowerWallet:  address of team's wallet }); */
         //if (/* typeContract == "DAIDO" */true) {
 
 

@@ -4,11 +4,12 @@ pragma solidity >=0.4.22 <0.9.0;
 import "./interfaces/i2SV.sol";
 import "./interfaces/IERC20.sol";
 import "./libs/SafeMath.sol";
+import "./libs/UniswapV2Library.sol";
 /// @title Typical DAIDO vesting contract
 /// @author The name of the author
 /// @notice Explain to an end user what this does 
 /// @dev Explain to a developer any extra details
-contract VestCollateral is i2SV {
+contract VestDynamicCollateral is i2SV {
     using SafeMath for uint256;
 
     //    Statuses:     0-created, 10- capped , 20 - started, 100 - paused 200 - aborted, 255 - finished
@@ -27,8 +28,12 @@ contract VestCollateral is i2SV {
 
 
     uint8 public status ; // (1- created, 10- capped , 20 - started, 100 - paused 200 - aborted, 255 - finished )
-    uint16 public votesForAbort;    
     bool isConfigured;    
+
+    uint16 public votesForAbort;    
+    uint16 RESERVLEVERAGE = 100;
+
+    
     uint256 public raisedToken1; // sum raised in  token1
     uint256 public raisedToken2;  // sum raised in  token2
     uint256 public refundToken1;  // sum refunded token2 by borrower
@@ -50,6 +55,12 @@ contract VestCollateral is i2SV {
     mapping(address => bool) public voters; 
 
     address constant ETHCODE = address(0x0000000000000000000000000000000000000001);
+    address u2Factory;
+
+    constructor (address _UniswapFactory) {
+        u2Factory = _UniswapFactory;
+    }
+
     /// @notice setVesting sets parameters of vesting 
     function setVesting (
         Vesting calldata _vest,
@@ -65,6 +76,8 @@ contract VestCollateral is i2SV {
             amount2 += _rules[i].amount2;            
             rules.push (_rules[i]); 
         }
+        (uint res1, uint res2) = checkReserves();
+        require(res2 > vest.vest1.amount2 * RESERVLEVERAGE);
         require(amount1 == _vest.vest1.amount1 && amount2 == _vest.vest1.amount2, "Error in vest schedule"  );
         vest = _vest;
         isConfigured = true;
@@ -238,7 +251,8 @@ contract VestCollateral is i2SV {
                 _withdrAmount = address(this).balance;
                 payable(msg.sender).transfer(_withdrAmount);
                 emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
-                avAmount = _withdrAmount.mul(vest.vest1.amount2).div(vest.vest1.amount1);
+                (uint res1, uint res2) = checkReserves();
+                avAmount = _withdrAmount.mul(res2).div(res1);
                 withdrAmount2 = _withdrAmount.sub(avAmount);
                 IERC20(vest.vest1.token2).transfer( msg.sender, withdrAmount2);
                 emit Claimed(address(this), vest.vest1.token2, msg.sender, withdrAmount2);
@@ -328,6 +342,8 @@ contract VestCollateral is i2SV {
         return (vested[vest.vest1.token2][msg.sender]);
     }
 
-    
+    function checkReserves() public view returns (uint256 reserv1, uint256 reserv2  ) {
+        return UniswapV2Library.getReserves(u2Factory, vest.vest1.token1, vest.vest1.token2);
+    }
 
 }

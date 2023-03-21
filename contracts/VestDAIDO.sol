@@ -158,7 +158,7 @@ contract VestDAIDO is i2SV {
                 avAmount = avAmount.add(inc);
            }
         }
-          avAmount =  avAmount.sub(withdrawed[vest.vest1.token1][vest.vest2.teamWallet]);        
+          avAmount =  avAmount.sub(withdrawed[vest.vest1.token1][vest.vest2.borrowerWallet]);        
     }
 
 
@@ -170,18 +170,18 @@ contract VestDAIDO is i2SV {
         require(!isPaused(), "Withdraw paused by participant");
         require(status != ABORTED , "Vesting aborted");
         require(status >= CAPPED,  "Vesting not capped");
-//        require(msg.sender == vest.teamWallet, "just call from teamwallet"); //tbd is necessary or not?
+//        require(msg.sender == vest.borrowerWallet, "just call from borrowerWallet"); //tbd is necessary or not?
        
         uint256 avAmount = availableClaimToken1();
         require(_amount <= avAmount, "No enough amount for withdraw");
         
-        withdrawed[vest.vest1.token1][vest.vest2.teamWallet] =  withdrawed[vest.vest1.token1][vest.vest2.teamWallet].add(_amount);
+        withdrawed[vest.vest1.token1][vest.vest2.borrowerWallet] =  withdrawed[vest.vest1.token1][vest.vest2.borrowerWallet].add(_amount);
         withdrawedToken1 = withdrawedToken1.add(_amount);
         if (vest.vest2.isNative) {
-            payable(vest.vest2.teamWallet).transfer(_amount);
+            payable(vest.vest2.borrowerWallet).transfer(_amount);
         }
         else { 
-            IERC20(vest.vest1.token1).transfer(vest.vest2.teamWallet, _amount);            
+            IERC20(vest.vest1.token1).transfer(vest.vest2.borrowerWallet, _amount);            
          }
         emit Claimed(address(this), vest.vest1.token1, msg.sender, _amount);
         if (raisedToken1 == withdrawedToken1 && raisedToken2 == withdrawedToken2) { 

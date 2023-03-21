@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 const timeMachine = require('ganache-time-traveler');
+const { artifacts } = require('hardhat');
 const VestFactory = artifacts.require("VestFactory");
 const VestContract = artifacts.require("VestCollateral");
 const Token1 = artifacts.require("Token1");
@@ -37,14 +38,15 @@ var  startVestConf;
 let snapshot;
 let snapshotId;
 
+const dSVFact =  artifacts.require("VestFactory");
+const t1 =  artifacts.require("Token1");
+const t2 =  artifacts.require("Token2");
+
+
   it('Deploy test  2side vesting contract ', async () => {
     snapshot = await timeMachine.takeSnapshot();
     snapshotId = snapshot['result'];
     
-
-    const dSVFact =  await  VestFactory.deployed();
-    const t1 =  await Token1.deployed();
-    const t2 =  await Token2.deployed();
 
     startVestConf = {
       vest1: {
@@ -300,11 +302,11 @@ let snapshotId;
     console.log (raisedToken1, raisedToken2, refundToken1 ) 
     console.log (withdrawedToken1, withdrawedToken2,  withdrawedRefund1 ) 
 
-   //  let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[1]})).toNumber();
+    let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[1]})).toNumber();
 
     let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[1]})).toNumber();
 
-    await vestContract.claimWithdrawToken2( av2claimt2, {from:accounts[1]} ) ;
+    await vestContract.claimWithdrawToken2( av2claimt1, {from:accounts[1]} ) ;
     
     assert (withdrawedRefund1- (await vestContract.withdrawedRefund1()).toNumber(), 0, "withdrawedRefund1" );
     assert (withdrawedToken2- (await vestContract.withdrawedToken2()).toNumber(), 165, "withdrawedRefund1" );
@@ -364,11 +366,11 @@ let snapshotId;
       console.log (raisedToken1, raisedToken2, refundToken1 ) 
       console.log (withdrawedToken1, withdrawedToken2,  withdrawedRefund1 ) 
   
-     //  let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[2]})).toNumber();
+      let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[2]})).toNumber();
   
       let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[2]})).toNumber();
   
-      await vestContract.claimWithdrawToken2( av2claimt2, {from:accounts[2]} ) ;
+      await vestContract.claimWithdrawToken2( av2claimt1, {from:accounts[2]} ) ;
       
       assert (withdrawedRefund1- (await vestContract.withdrawedRefund1()).toNumber(), 0, "withdrawedRefund1" );
       assert (withdrawedToken2- (await vestContract.withdrawedToken2()).toNumber(), 165, "withdrawedRefund1" );
@@ -405,11 +407,11 @@ let snapshotId;
         console.log (raisedToken1, raisedToken2, refundToken1 ) 
         console.log (withdrawedToken1, withdrawedToken2,  withdrawedRefund1 ) 
     
-       //  let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[3]})).toNumber();
+        let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[3]})).toNumber();
     
         let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[3]})).toNumber();
     
-        await vestContract.claimWithdrawToken2( av2claimt2, {from:accounts[3]} ) ;
+        await vestContract.claimWithdrawToken2( av2claimt1, {from:accounts[3]} ) ;
         const withdrawedRefund1after =  (await vestContract.withdrawedRefund1()).toNumber()
         const withdrawedToken2after =  (await vestContract.withdrawedToken2()).toNumber()
         assert (withdrawedRefund1, withdrawedRefund1after, "withdrawedRefund1" );
