@@ -68,7 +68,7 @@ const t2 =  artifacts.require("Token2");
         isNative: false,
         prevRound:ETHCODE, //noprevround
         penalty: 0,
-        penalty_period: 0                
+        penaltyPeriod: 0                
        }
     }
     

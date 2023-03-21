@@ -64,7 +64,7 @@ it('Deploy test  2side vesting contract ', async () => {
       isNative: true,
       prevRound:ETHCODE, //no prev round
       penalty: 0,
-      penalty_period: 0      
+      penaltyPeriod: 0      
      }
   }
   const txDepl = await dSVFact.deployVest (

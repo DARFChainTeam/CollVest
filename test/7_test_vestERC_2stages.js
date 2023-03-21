@@ -70,7 +70,7 @@ let snapshotId;
         isNative: false,
         prevRound:ETHCODE ,//noprevround
         penalty: 0,
-        penalty_period: 0        
+        penaltyPeriod: 0        
        }
         }
     
@@ -121,7 +121,7 @@ let snapshotId;
         isNative: false,
         prevRound:vestContractAddr,
         penalty: 0,
-        penalty_period: 0              
+        penaltyPeriod: 0              
        }
         }
     

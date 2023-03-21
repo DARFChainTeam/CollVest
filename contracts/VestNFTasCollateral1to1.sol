@@ -224,7 +224,7 @@ contract VestNFTasCollateral1to1 is i2SV, IERC721Receiver  {
             _withdrAmount = address(this).balance;
             payable(msg.sender).transfer(_withdrAmount);
             emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
-            if (penalty > 0 && block.timestamp - lastPaymentDate > vest.vest2.penalty_period ) { ///@notice creditor get NFT pledge 
+            if (penalty > 0 && block.timestamp - lastPaymentDate > vest.vest2.penaltyPeriod ) { ///@notice creditor get NFT pledge 
             
                 IERC721(vest.vest1.token2).transferFrom(address(this), msg.sender, vest.vest1.token2Id);
                 emit Claimed(address(this), vest.vest1.token2, msg.sender, vest.vest1.token2Id);
@@ -240,7 +240,7 @@ contract VestNFTasCollateral1to1 is i2SV, IERC721Receiver  {
                 _withdrAmount =  IERC20(vest.vest1.token1 ).balanceOf(address(this));
                 IERC20(vest.vest1.token1).transfer(msg.sender, _withdrAmount);            
                 emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
-                if (penalty > 0 && block.timestamp - lastPaymentDate > vest.vest2.penalty_period ) { ///@notice creditor get NFT pledge 
+                if (penalty > 0 && block.timestamp - lastPaymentDate > vest.vest2.penaltyPeriod ) { ///@notice creditor get NFT pledge 
                     IERC721(vest.vest1.token2).transferFrom(address(this), msg.sender, vest.vest1.token2Id);
                     emit Claimed(address(this), vest.vest1.token2, msg.sender, vest.vest1.token2Id);
                 }

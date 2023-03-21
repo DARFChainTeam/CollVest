@@ -37,7 +37,7 @@ interface i2SVstruct {
         bool isNative; // true if this vesting uses blockchain native token to vest, f.e. ETH in Ethereum mainnet       
         address prevRound;
         uint256 penalty;
-        uint256 penalty_period;
+        uint256 penaltyPeriod;
 
     } 
 
