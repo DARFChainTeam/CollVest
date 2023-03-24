@@ -57,6 +57,47 @@ contract VestNFTasCollateral1to1 is i2SV, IERC721Receiver  {
     mapping(address => bool) public voters; 
 
     address constant ETHCODE = address(0x0000000000000000000000000000000000000001);
+
+  /** Ownable section
+    based on Ownable from OZ, direct import and inheritance  don't deploy anyway
+     */
+    address private _owner;
+    bool nonInitialised = true;
+
+
+    function initialize (address _admin) public {
+        require(nonInitialised, "Admin already set");
+        _owner = _admin;
+        nonInitialised = false;
+    }
+
+       /**
+     * @dev Throws if called by any account other than the owner.
+     */
+    modifier onlyOwner() {
+        _checkOwner();
+        _;
+    }
+
+        /**
+     * @dev Returns the address of the current owner.
+     */
+    function owner() public view virtual returns (address) {
+        return _owner;
+    }
+
+    /**
+     * @dev Throws if the sender is not the owner.
+     */
+    function _checkOwner() internal view virtual {
+        require(owner() == _msgSender(), "Ownable: caller is not the owner");
+    }
+
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+
     /// @notice setVesting sets parameters of vesting 
     function setVesting (
         Vesting calldata _vest,
@@ -78,7 +119,47 @@ contract VestNFTasCollateral1to1 is i2SV, IERC721Receiver  {
         emit CreatedVesting(address(this),_vest, _rules);
         emit VestStatus(address(this),CREATED);
         }
-    
+
+    function changeVesting ( 
+        Vesting calldata _vest,
+        Rule[] calldata _rules) public  onlyOwner  /* override */  {
+            /// @notice changing conditions of vesting before another side put their  part of funding
+            /// @dev gets stored parameters and compares each one for changing, in changed, saves new value. 
+            /// @param _rules - vesting schedule 
+            /// @param _vestConf - vesting parameters, see i2SVstruct.sol     
+        require(status < CAPPED, "Contract funded" );
+        if (vest.vest1.amount1 != _vest.vest1.amount1)  vest.vest1.amount1 = _vest.vest1.amount1;
+        if (vest.vest1.amount2 != _vest.vest1.amount2)  vest.vest1.amount2 = _vest.vest1.amount2;
+        if (vest.vest1.softCap1 != _vest.vest1.softCap1)  vest.vest1.softCap1 = _vest.vest1.softCap1;
+        if (vest.vest1.minBuy1 != _vest.vest1.minBuy1)  vest.vest1.minBuy1 = _vest.vest1.minBuy1;
+        if (vest.vest1.maxBuy1 != _vest.vest1.maxBuy1)  vest.vest1.maxBuy1 = _vest.vest1.maxBuy1;
+        if (vest.vest1.token1 != _vest.vest1.token1)  vest.vest1.token1 = _vest.vest1.token1;
+        if (vest.vest1.token2 != _vest.vest1.token2)  vest.vest1.token2 = _vest.vest1.token2;
+        if (vest.vest1.token2Id != _vest.vest1.token2Id)  vest.vest1.token2Id = _vest.vest1.token2Id;
+
+        // upffff...
+        if (vest.vest2.pausePeriod != _vest.vest2.pausePeriod)  vest.vest2.pausePeriod = _vest.vest2.pausePeriod;
+        if (vest.vest2.borrowerWallet != _vest.vest2.borrowerWallet)  vest.vest2.borrowerWallet = _vest.vest2.borrowerWallet;        
+        if (vest.vest2.vestShare4pauseWithdraw != _vest.vest2.vestShare4pauseWithdraw)  vest.vest2.vestShare4pauseWithdraw = _vest.vest2.vestShare4pauseWithdraw;    
+        if (vest.vest2.voteShareAbort != _vest.vest2.voteShareAbort)  vest.vest2.voteShareAbort = _vest.vest2.voteShareAbort;               
+        if (vest.vest2.isNative != _vest.vest2.isNative)  vest.vest2.isNative = _vest.vest2.isNative;                       
+        if (vest.vest2.prevRound != _vest.vest2.prevRound)  vest.vest2.prevRound = _vest.vest2.prevRound;   
+        if (vest.vest2.penalty != _vest.vest2.penalty)  vest.vest2.penalty = _vest.vest2.penalty;   
+        if (vest.vest2.penaltyPeriod != _vest.vest2.penaltyPeriod)  vest.vest2.penaltyPeriod = _vest.vest2.penaltyPeriod;   
+
+        uint256 amount1;
+        uint256 amount2;            
+        for (uint8 i=0; i<_rules.length; i++) {
+            if (rules[i].amount1 != _rules[i].amount1)  rules[i].amount1 = _rules[i].amount1;
+            if (rules[i].amount2 != _rules[i].amount2)  rules[i].amount2 = _rules[i].amount2;        
+            amount1 += _rules[i].amount1;
+            amount2 += _rules[i].amount2;            
+        }
+        require(amount1 == _vest.vest1.amount1 && amount2 == _vest.vest1.amount2, "Error in vest schedule"  );
+
+        
+        }
+        
     function putVesting (address _token, address _recepient, uint256 _amount) public override  payable {
     /// @notice accepts vesting payments from both sides 
     /// @dev divides for native and ERC20 flows
@@ -86,7 +167,7 @@ contract VestNFTasCollateral1to1 is i2SV, IERC721Receiver  {
     /// @param  _recepient - address of wallet, who can claim tokens
     /// @param  _amount - sum of vesting payment in wei 
         if (msg.sender == vest.vest2.borrowerWallet) { 
-            if (_token == vest.vest1.token1) {       
+            
                 IERC20(vest.vest1.token1).transferFrom(msg.sender, address(this), _amount);
 
                 refundToken1 = refundToken1.add( _amount);
@@ -94,14 +175,15 @@ contract VestNFTasCollateral1to1 is i2SV, IERC721Receiver  {
 
                 emit Vested(address(this), _token, msg.sender, _amount);
             }
-            else {
-                if (IERC721(vest.vest1.token2).ownerOf(vest.vest1.token2Id) != address(this)){///@notice team vests NFT as collateral
-                    IERC721(vest.vest1.token2).safeTransferFrom(msg.sender , address(this), vest.vest1.token2Id);
-                }
+        else if (_token == vest.vest1.token2)  {
+                ///@notice BORROWER vests NFT as collateral
+                IERC721(vest.vest1.token2).safeTransferFrom(msg.sender , address(this), vest.vest1.token2Id);
+                
                 status = status==VESTORFUNDED?CAPPED:BORROWERFUNDED; ///@notice borrower sent NFT to us
-                emit Vested(address(this), vest.vest1.token2, msg.sender, vest.vest1.token2Id);
-                }
+                emit Vested(address(this), vest.vest1.token2, _recepient, vest.vest1.token2Id);
+                
             }
+        
         else {
             uint256 amount = vest.vest1.amount1;
             (bool ok, uint256 curVest) =  vested[vest.vest1.token1][_recepient].tryAdd(amount);
@@ -117,7 +199,7 @@ contract VestNFTasCollateral1to1 is i2SV, IERC721Receiver  {
             raisedToken1 = raisedToken1.add( amount);
             
             vested[_token][_recepient] = curVest;
-            emit Vested(address(this), _token, msg.sender, _amount);
+            emit Vested(address(this), _token, _recepient, _amount);
             status = status==BORROWERFUNDED ?CAPPED:VESTORFUNDED;
 
         }

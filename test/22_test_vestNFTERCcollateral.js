@@ -70,10 +70,22 @@ let snapshotId;
         penaltyPeriod: 0                
        }
     }
+
+    //  const balance = await t2.balanceOf(accounts[0])
+    await t2.approve(borrowerWallet,startVestConf.vest1.token2Id )
+    await t2.transferFrom(accounts[0], borrowerWallet , startVestConf.vest1.token2Id);
+    const balance = (await t2.balanceOf(borrowerWallet)).toNumber();
+    assert.equal(balance, 1, "didn't transfer startVestConf.vest1.amount2");
+    await  t2.approve(dSVFact.address,startVestConf.vest1.token2Id,{from:borrowerWallet} )
+
     
     const txDepl = await dSVFact.deployVest (
+      t2.address, 
+      borrowerWallet, 
+      startVestConf.vest1.token2Id , 
       vestRules,
-      startVestConf
+      startVestConf,
+      {from:borrowerWallet}
     );
     
     vestContractAddr = txDepl.logs[0].args[0];
@@ -88,12 +100,15 @@ let snapshotId;
     const vestConf = await vestContract.vest();
         
     assert.equal(vestConf.vest2.pausePeriod,  startVestConf.vest2.pausePeriod);
+    const vested9 = await vestContract.getVestedTok2( {from: borrowerWallet} ); 
+    assert.equal(1, vested9/* [1] */.toNumber(), "vested9");
+
 
   });
 
 
 
-  it('should send NFT as token2 to  vesting contract', async () => {
+/*   it('should send NFT as token2 to  vesting contract', async () => {
     // let snapshot = await timeMachine.takeSnapshot();
     // snapshotId = snapshot['result'];
 
@@ -114,10 +129,10 @@ let snapshotId;
     await vestContract.putVesting(t2.address, borrowerWallet, startVestConf.vest1.token2Id , {from:borrowerWallet} )
 
     const vested9 = await vestContract.getVestedTok2( {from: borrowerWallet} ); 
-    assert.equal(1, vested9/* [1] */.toNumber(), "vested9");
+    assert.equal(1, vested9 [1] .toNumber(), "vested9");
 
   });
-
+ */
 
   it('should send amount1 of token1 to  vesting contract', async () => {
     const t1 = await Token1.deployed();

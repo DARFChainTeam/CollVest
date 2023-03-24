@@ -10,6 +10,14 @@ interface i2SV is i2SVstruct {
         Vesting calldata _vest,        
         Rule[] calldata _rules) external;
 
+/*     function changeVesting ( 
+        Vesting calldata _vest,
+        Rule[] calldata _rules) external;
+        
+       function setVesting ( address _token, address _recepient, uint256 _amount,
+        Vesting calldata _vest,
+        Rule[] calldata _rules
+        ) external payable; */
     function putVesting (address _token, address _recepient, uint256 _amount) external payable;
 
     function claimWithdrawToken1( uint256 _amount) external;

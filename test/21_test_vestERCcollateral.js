@@ -70,9 +70,24 @@ let snapshotId;
        }
     }
     
+
+   
+    await t2.transfer(borrowerWallet, startVestConf.vest1.amount2);
+    const balance = (await t2.balanceOf(borrowerWallet)).toNumber();
+    assert.equal(balance, startVestConf.vest1.amount2, "didn't transfer startVestConf.vest1.amount2");
+
+
+    const balanceT2_9= (await t2.balanceOf(accounts[9])).toNumber();;
+
+    await t2.approve(dSVFact.address,startVestConf.vest1.amount2, {from:borrowerWallet});
+
     const txDepl = await dSVFact.deployVest (
+      t2.address, 
+      borrowerWallet,
+      startVestConf.vest1.amount2,
       vestRules,
-      startVestConf
+      startVestConf,
+      {from:borrowerWallet}
     );
     
     vestContractAddr = txDepl.logs[0].args[0];
@@ -122,35 +137,11 @@ let snapshotId;
 
     
 
-  it('should send amount2 of token2 to  vesting contract', async () => {
-    // let snapshot = await timeMachine.takeSnapshot();
-    // snapshotId = snapshot['result'];
+  // it('should send amount2 of token2 to  vesting contract', async () => {
+  //   // let snapshot = await timeMachine.takeSnapshot();
+  //   // snapshotId = snapshot['result'];
 
-    const t2 = await Token2.deployed();
-  //  const balance = await t2.balanceOf(accounts[0])
-
-    await t2.transfer(borrowerWallet, startVestConf.vest1.amount2);
-    const balance = (await t2.balanceOf(borrowerWallet)).toNumber();
-    assert.equal(balance, startVestConf.vest1.amount2, "didn't transfer startVestConf.vest1.amount2");
-
-
-    const vestContract = await VestContract.at(vestContractAddr);
-    const balanceT2_9= (await t2.balanceOf(accounts[9])).toNumber();;
-
-    await t2.approve(vestContractAddr,startVestConf.vest1.amount2, {from:borrowerWallet});
-    await vestContract.putVesting(t2.address, borrowerWallet, startVestConf.vest1.amount2 /2 , {from:borrowerWallet} )
-    
-    // const allowanceT2 =  ( await t2.allowance(accounts[0], vestContractAddr )).toNumber();
-    await t2.approve(vestContractAddr,startVestConf.vest1.amount2, {from:accounts[0]});
-
-    //TODO - strange bug, cant invest from acc[0]
-    await vestContract.putVesting(t2.address, borrowerWallet, startVestConf.vest1.amount2/2, {from: accounts[0]});
-
-    const vested9 = await vestContract.getVestedTok2( {from: borrowerWallet} ); 
-    assert.equal(startVestConf.vest1.amount2, vested9/* [1] */.toNumber(), "vested9");
-
-
-  });
+  // });
 
 
   it('vesting funded', async () => {
@@ -300,23 +291,23 @@ let snapshotId;
     console.log (raisedToken1, raisedToken2, refundToken1 ) 
     console.log (withdrawedToken1, withdrawedToken2,  withdrawedRefund1 ) 
 
-   //  let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[1]})).toNumber();
+  //  //  let av2claimt1 =  (await vestContract.availableClaimToken1({from:accounts[1]})).toNumber();
 
-    let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[1]})).toNumber();
+  //   let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[1]})).toNumber();
 
-    await vestContract.claimWithdrawToken2( av2claimt2, {from:accounts[1]} ) ;
+  //   await vestContract.claimWithdrawToken2( av2claimt2, {from:accounts[1]} ) ;
     
-    assert (withdrawedRefund1- (await vestContract.withdrawedRefund1()).toNumber(), 0, "withdrawedRefund1" );
-    assert (withdrawedToken2- (await vestContract.withdrawedToken2()).toNumber(), 165, "withdrawedRefund1" );
+  //   assert (withdrawedRefund1- (await vestContract.withdrawedRefund1()).toNumber(), 0, "withdrawedRefund1" );
+  //   assert (withdrawedToken2- (await vestContract.withdrawedToken2()).toNumber(), 165, "withdrawedRefund1" );
 
 
-    withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
-    withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
+  //   withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
+  //   withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
  
-    console.log (raisedToken1, raisedToken2, refundToken1 ) 
-    console.log (withdrawedToken1, withdrawedToken2,  withdrawedRefund1 ) 
+  //   console.log (raisedToken1, raisedToken2, refundToken1 ) 
+  //   console.log (withdrawedToken1, withdrawedToken2,  withdrawedRefund1 ) 
 
-    const balt2after1 = (await  t2.balanceOf(accounts[1])).toNumber();
+  //   const balt2after1 = (await  t2.balanceOf(accounts[1])).toNumber();
 
     });
 

@@ -4,11 +4,12 @@ pragma solidity >=0.4.22 <0.9.0;
 import "./interfaces/i2SV.sol";
 import "./interfaces/IERC20.sol";
 import "./libs/SafeMath.sol";
+// import "./libs/OwnableInit.sol";
 /// @title Typical DAIDO vesting contract
 /// @author The name of the author
 /// @notice Explain to an end user what this does 
 /// @dev Explain to a developer any extra details
-contract VestCollateral is i2SV {
+contract VestCollateral is  /* OwnableInit, */ i2SV {
     using SafeMath for uint256;
 
     //    Statuses:     0-created, 10- capped , 20 - started, 100 - paused 200 - aborted, 255 - finished
@@ -50,11 +51,54 @@ contract VestCollateral is i2SV {
     mapping(address => bool) public voters; 
 
     address constant ETHCODE = address(0x0000000000000000000000000000000000000001);
-    /// @notice setVesting sets parameters of vesting 
-    function setVesting (
+    /** Ownable section
+    based on Ownable from OZ, direct import and inheritance  don't deploy anyway
+     */
+    address private _owner;
+    bool nonInitialised = true;
+
+
+    function initialize (address _admin) public {
+        require(nonInitialised, "Admin already set");
+        _owner = _admin;
+        nonInitialised = false;
+    }
+
+       /**
+     * @dev Throws if called by any account other than the owner.
+     */
+    modifier onlyOwner() {
+        _checkOwner();
+        _;
+    }
+
+        /**
+     * @dev Returns the address of the current owner.
+     */
+    function owner() public view virtual returns (address) {
+        return _owner;
+    }
+
+    /**
+     * @dev Throws if the sender is not the owner.
+     */
+    function _checkOwner() internal view virtual {
+        require(owner() == _msgSender(), "Ownable: caller is not the owner");
+    }
+
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+
+    function setVesting ( 
         Vesting calldata _vest,
         Rule[] calldata _rules
-        ) public override { 
+        ) public  override     { 
+        /// @notice setVesting sets parameters of vesting, 
+        /// @param _rules - vesting schedule 
+        /// @param _vestConf - vesting parameters, see i2SVstruct.sol       
+
         require(!isConfigured, "can't change anything");
         if (_vest.vest2.isNative) require( _vest.vest1.token1 == ETHCODE, "Error in config native token");
         
@@ -70,8 +114,49 @@ contract VestCollateral is i2SV {
         isConfigured = true;
         emit CreatedVesting(address(this),_vest, _rules);
         emit VestStatus(address(this),CREATED);
+
+
         }
-    
+
+    function changeVesting ( 
+        Vesting calldata _vest,
+        Rule[] calldata _rules) public  onlyOwner  /* override */  {
+            /// @notice changing conditions of vesting before another side put their  part of funding
+            /// @dev gets stored parameters and compares each one for changing, in changed, saves new value. 
+            /// @param _rules - vesting schedule 
+            /// @param _vestConf - vesting parameters, see i2SVstruct.sol     
+        require(status < CAPPED, "Contract funded" );
+        if (vest.vest1.amount1 != _vest.vest1.amount1)  vest.vest1.amount1 = _vest.vest1.amount1;
+        if (vest.vest1.amount2 != _vest.vest1.amount2)  vest.vest1.amount2 = _vest.vest1.amount2;
+        if (vest.vest1.softCap1 != _vest.vest1.softCap1)  vest.vest1.softCap1 = _vest.vest1.softCap1;
+        if (vest.vest1.minBuy1 != _vest.vest1.minBuy1)  vest.vest1.minBuy1 = _vest.vest1.minBuy1;
+        if (vest.vest1.maxBuy1 != _vest.vest1.maxBuy1)  vest.vest1.maxBuy1 = _vest.vest1.maxBuy1;
+        if (vest.vest1.token1 != _vest.vest1.token1)  vest.vest1.token1 = _vest.vest1.token1;
+        if (vest.vest1.token2 != _vest.vest1.token2)  vest.vest1.token2 = _vest.vest1.token2;
+        if (vest.vest1.token2Id != _vest.vest1.token2Id)  vest.vest1.token2Id = _vest.vest1.token2Id;
+
+        // upffff...
+        if (vest.vest2.pausePeriod != _vest.vest2.pausePeriod)  vest.vest2.pausePeriod = _vest.vest2.pausePeriod;
+        if (vest.vest2.borrowerWallet != _vest.vest2.borrowerWallet)  vest.vest2.borrowerWallet = _vest.vest2.borrowerWallet;        
+        if (vest.vest2.vestShare4pauseWithdraw != _vest.vest2.vestShare4pauseWithdraw)  vest.vest2.vestShare4pauseWithdraw = _vest.vest2.vestShare4pauseWithdraw;    
+        if (vest.vest2.voteShareAbort != _vest.vest2.voteShareAbort)  vest.vest2.voteShareAbort = _vest.vest2.voteShareAbort;               
+        if (vest.vest2.isNative != _vest.vest2.isNative)  vest.vest2.isNative = _vest.vest2.isNative;                       
+        if (vest.vest2.prevRound != _vest.vest2.prevRound)  vest.vest2.prevRound = _vest.vest2.prevRound;   
+        if (vest.vest2.penalty != _vest.vest2.penalty)  vest.vest2.penalty = _vest.vest2.penalty;   
+        if (vest.vest2.penaltyPeriod != _vest.vest2.penaltyPeriod)  vest.vest2.penaltyPeriod = _vest.vest2.penaltyPeriod;   
+
+        uint256 amount1;
+        uint256 amount2;            
+        for (uint8 i=0; i<_rules.length; i++) {
+            if (rules[i].amount1 != _rules[i].amount1)  rules[i].amount1 = _rules[i].amount1;
+            if (rules[i].amount2 != _rules[i].amount2)  rules[i].amount2 = _rules[i].amount2;        
+            amount1 += _rules[i].amount1;
+            amount2 += _rules[i].amount2;            
+        }
+        require(amount1 == _vest.vest1.amount1 && amount2 == _vest.vest1.amount2, "Error in vest schedule"  );
+
+        
+        }
     
     function putVesting (address _token, address _recepient, uint256 _amount) public override  payable {
     /// @notice accepts vesting payments from both sides 
@@ -95,13 +180,14 @@ contract VestCollateral is i2SV {
                 if (vest.vest1.minBuy1 > 0) require(_amount >= vest.vest1.minBuy1, "amount must be greater minBuy");
                 IERC20(_token).transferFrom(msg.sender, address(this), _amount);
             }
-            if (msg.sender != vest.vest2.borrowerWallet) {
+            if (status < CAPPED) { //msg.sender != vest.vest2.borrowerWallet
+                
                 raisedToken1 = raisedToken1.add( _amount);
+                require(raisedToken1 <= vest.vest1.amount1, "Token1 capped");
                 }
-            else {
+            else if (status >= LOANWITHDRAWED) {
                 refundToken1 = refundToken1.add( _amount);
             }
-            require(raisedToken1 <= vest.vest1.amount1, "Token1 capped");
         } else if (_token == vest.vest1.token2)  {
             raisedToken2 = raisedToken2.add( _amount);
             require(raisedToken2 <= vest.vest1.amount2, "Token2 capped");
@@ -109,7 +195,7 @@ contract VestCollateral is i2SV {
         }
          
         vested[_token][_recepient] = curVest;
-        emit Vested(address(this), _token, msg.sender, _amount);
+        emit Vested(address(this), _token, _recepient, _amount); 
     } 
     {
 /*         if (vest.vest1.softCap1 >0 && //softCap case
