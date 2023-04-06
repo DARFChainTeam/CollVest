@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: GPL
 
 pragma solidity >=0.4.22 <0.9.0;
-import "./interfaces/i2SV.sol";
+import "./DoubleSideVesting.sol";
 import "./interfaces/IERC20.sol";
 import "./libs/SafeMath.sol";
 import "./libs/UniswapV2Library.sol";
@@ -9,82 +9,15 @@ import "./libs/UniswapV2Library.sol";
 /// @author The name of the author
 /// @notice Explain to an end user what this does 
 /// @dev Explain to a developer any extra details
-contract VestDynamicCollateral is i2SV {
+contract VestDynamicCollateral is DoubleSideVesting {
     using SafeMath for uint256;
 
-    //    Statuses:     0-created, 10- capped , 20 - started, 100 - paused 200 - aborted, 255 - finished
-
-    uint8 constant CREATED = 1;
-    uint8 constant OPENED = 5;
-    // uint8 constant SOFTCAPPED = 9;
-    uint8 constant CAPPED = 10;
-    uint8 constant LOANWITHDRAWED = 15;
-    uint8 constant STARTED = 20;
-    uint8 constant PAUSED = 100;
-    uint8 constant VOTING = 150;
-    uint8 constant ABORTED = 200;
-    uint8 constant REFUNDING = 220;
-    uint8 constant FINISHED = 255;
-
-
-    uint8 public status ; // (1- created, 10- capped , 20 - started, 100 - paused 200 - aborted, 255 - finished )
-    bool isConfigured;    
-
-    uint16 public votesForAbort;    
-    uint16 RESERVLEVERAGE = 100;
-
-    
-    uint256 public raisedToken1; // sum raised in  token1
-    uint256 public raisedToken2;  // sum raised in  token2
     uint256 public refundToken1;  // sum refunded token2 by borrower
-    uint256 public withdrawedToken1; // sum withdrawed in  token1
+    
     uint256 public withdrawedRefund1; // sum withdrawed by creditor 
-    uint256 public withdrawedToken2;  // sum withdrawed in  token2
-
-
-    Vesting public vest;
     
-    
-    Rule[] public rules; 
-    Withdrawpauses[] public pauses;
-    address[] public vestors;
-    
+    address private u2Factory;
 
-    mapping(address => mapping (address => uint256)) public  vested; //token => address of user
-    mapping(address => mapping (address => uint256))  public withdrawed; //token => address of user
-    mapping(address => bool) public voters; 
-
-    address constant ETHCODE = address(0x0000000000000000000000000000000000000001);
-    address u2Factory;
-
-    constructor (address _UniswapFactory) {
-        u2Factory = _UniswapFactory;
-    }
-
-    /// @notice setVesting sets parameters of vesting 
-    function setVesting (
-        Vesting calldata _vest,
-        Rule[] calldata _rules
-        ) public override { 
-        require(!isConfigured, "can't change anything");
-        if (_vest.vest2.isNative) require( _vest.vest1.token1 == ETHCODE, "Error in config native token");
-        
-        uint256 amount1;
-        uint256 amount2;            
-        for (uint8 i=0; i<_rules.length; i++) {
-            amount1 += _rules[i].amount1;
-            amount2 += _rules[i].amount2;            
-            rules.push (_rules[i]); 
-        }
-        (uint res1, uint res2) = checkReserves();
-        require(res2 > vest.vest1.amount2 * RESERVLEVERAGE);
-        require(amount1 == _vest.vest1.amount1 && amount2 == _vest.vest1.amount2, "Error in vest schedule"  );
-        vest = _vest;
-        isConfigured = true;
-        emit CreatedVesting(address(this),_vest, _rules);
-        emit VestStatus(address(this),CREATED);
-        }
-    
     
     function putVesting (address _token, address _recepient, uint256 _amount) public override  payable {
     /// @notice accepts vesting payments from both sides 
@@ -165,7 +98,7 @@ contract VestDynamicCollateral is i2SV {
     } 
 
 */
-    function availableClaimToken1 () public view returns (uint256 avAmount) {
+    function availableClaimToken1 () public view override returns (uint256 avAmount) {
         /// @notice calculates  available amount of token1 for claiming by team
         /// @dev in web3-like libs call with {from} key!
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
@@ -185,7 +118,7 @@ contract VestDynamicCollateral is i2SV {
 
 
 
-    function claimWithdrawToken1(uint256 _amount) public  { 
+    function claimWithdrawToken1(uint256 _amount) public override  { 
         /// @notice withdraw _amount of ERC20 or native tokens. In this version claimWithdrawToken1 uses by borrower to withdraw of loan body , for legacy reasons,  and all amount1 sum will withdrawed for one transaction.
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @param _amount - uint256 (not used here, saved for legacy ) desired amount of  claiming token , 
@@ -211,7 +144,7 @@ contract VestDynamicCollateral is i2SV {
 
  /// @notice  
 
-    function availableClaimToken2 () public view returns (uint256 avAmount) {
+    function availableClaimToken2 () public override view returns (uint256 avAmount) {
         /// @notice calculates  available amount of token2 for claiming by vestors
         /// @dev in web3-like libs call with {from} key!
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
@@ -293,7 +226,7 @@ contract VestDynamicCollateral is i2SV {
     
 
   
-     function pauseWithdraw() public override {
+    function pauseWithdraw(string calldata _reason)  public override {
         revert ("not used here ");
     } 
     
@@ -321,7 +254,7 @@ contract VestDynamicCollateral is i2SV {
         revert ("not used here "); //TBD
     }
 
-    function refund () public {
+    function refund () public override {
         require(status == FINISHED , "not finished yet, can't refund" );
 
         //refund token2 
@@ -333,13 +266,6 @@ contract VestDynamicCollateral is i2SV {
         } else {
             revert ("no token2 invested from this address");
         }
-    }
-
-    function getVestedTok1 () public view returns (uint256) {
-        return (vested[vest.vest1.token1][msg.sender]);
-    }
-    function getVestedTok2 () public view returns (uint256) {
-        return (vested[vest.vest1.token2][msg.sender]);
     }
 
     function checkReserves() public view returns (uint256 reserv1, uint256 reserv2  ) {

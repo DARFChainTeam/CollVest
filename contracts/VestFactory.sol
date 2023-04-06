@@ -14,12 +14,20 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 contract VestFactory is Ownable, IERC721Receiver {
     event NewVesting(address,  i2SVstruct.Vesting, i2SVstruct.Rule[]);
     address constant ETHCODE = address(0x0000000000000000000000000000000000000001);
+    address private treasure;
+    uint8  fee ; // 5/1000 = 0,5%
+    address[] allVestContracts;
 
-    mapping (bytes => address) vestContracts;
+    mapping (bytes => address) vestContractsTypes;
 
     function setContracts (bytes calldata  _name, address _contract) onlyOwner public {
-        vestContracts[_name] =  _contract;
+        vestContractsTypes[_name] =  _contract;
     }
+    function setTreasureFee ( address _tresr,  uint8 _fee) public onlyOwner {
+        treasure = _tresr;
+        fee = _fee;
+    }
+
     function deployVest(  address _token, address _recepient, uint256 _amount,
         i2SVstruct.Rule[] calldata _rules,
         i2SVstruct.Vesting calldata _vestConf
@@ -35,8 +43,8 @@ contract VestFactory is Ownable, IERC721Receiver {
             
         i2SVstruct.Vesting memory vest = _vestConf;
         
-        i2SV vsd = i2SV (Clones.clone(vestContracts[_vestConf.vest1.vestType]));
-
+        i2SV vsd = i2SV (Clones.clone(vestContractsTypes[_vestConf.vest1.vestType]));
+        vsd.initialize (msg.sender,treasure, fee);  
         vsd.setVesting (            
                     vest,                
                     _rules);
@@ -62,7 +70,7 @@ contract VestFactory is Ownable, IERC721Receiver {
             }
 
             emit NewVesting(address(vsd), vest, _rules);
-      
+            allVestContracts.push(address(vsd));
         
     }
 
@@ -74,5 +82,11 @@ contract VestFactory is Ownable, IERC721Receiver {
         bytes calldata data
     )  external returns (bytes4) {
         return this.onERC721Received.selector;
+    }
+
+    function  withdrawAll2Treasury () external onlyOwner {
+        for (uint i=0; i< allVestContracts.length; i++){
+            i2SV(allVestContracts[i]).withdraw2Treasury();
+        }
     }
 }

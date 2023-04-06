@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: GPL
 
 pragma solidity >=0.4.22 <0.9.0;
-import "./interfaces/i2SV.sol";
+import "./DoubleSideVesting.sol";
 import "./interfaces/IERC20.sol";
 import "./libs/SafeMath.sol";
 // import "./libs/OwnableInit.sol";
@@ -9,154 +9,11 @@ import "./libs/SafeMath.sol";
 /// @author The name of the author
 /// @notice Explain to an end user what this does 
 /// @dev Explain to a developer any extra details
-contract VestCollateral is  /* OwnableInit, */ i2SV {
+contract VestCollateral is  DoubleSideVesting  {
     using SafeMath for uint256;
 
-    //    Statuses:     0-created, 10- capped , 20 - started, 100 - paused 200 - aborted, 255 - finished
-
-    uint8 constant CREATED = 1;
-    uint8 constant OPENED = 5;
-    // uint8 constant SOFTCAPPED = 9;
-    uint8 constant CAPPED = 10;
-    uint8 constant LOANWITHDRAWED = 15;
-    uint8 constant STARTED = 20;
-    uint8 constant PAUSED = 100;
-    uint8 constant VOTING = 150;
-    uint8 constant ABORTED = 200;
-    uint8 constant REFUNDING = 220;
-    uint8 constant FINISHED = 255;
-
-
-    uint8 public status ; // (1- created, 10- capped , 20 - started, 100 - paused 200 - aborted, 255 - finished )
-    uint16 public votesForAbort;    
-    bool isConfigured;    
-    uint256 public raisedToken1; // sum raised in  token1
-    uint256 public raisedToken2;  // sum raised in  token2
     uint256 public refundToken1;  // sum refunded token2 by borrower
-    uint256 public withdrawedToken1; // sum withdrawed in  token1
     uint256 public withdrawedRefund1; // sum withdrawed by creditor 
-    uint256 public withdrawedToken2;  // sum withdrawed in  token2
-
-
-    Vesting public vest;
-    
-    
-    Rule[] public rules; 
-    Withdrawpauses[] public pauses;
-    address[] public vestors;
-    
-
-    mapping(address => mapping (address => uint256)) public  vested; //token => address of user
-    mapping(address => mapping (address => uint256))  public withdrawed; //token => address of user
-    mapping(address => bool) public voters; 
-
-    address constant ETHCODE = address(0x0000000000000000000000000000000000000001);
-    /** Ownable section
-    based on Ownable from OZ, direct import and inheritance  don't deploy anyway
-     */
-    address private _owner;
-    bool nonInitialised = true;
-
-
-    function initialize (address _admin) public {
-        require(nonInitialised, "Admin already set");
-        _owner = _admin;
-        nonInitialised = false;
-    }
-
-       /**
-     * @dev Throws if called by any account other than the owner.
-     */
-    modifier onlyOwner() {
-        _checkOwner();
-        _;
-    }
-
-        /**
-     * @dev Returns the address of the current owner.
-     */
-    function owner() public view virtual returns (address) {
-        return _owner;
-    }
-
-    /**
-     * @dev Throws if the sender is not the owner.
-     */
-    function _checkOwner() internal view virtual {
-        require(owner() == _msgSender(), "Ownable: caller is not the owner");
-    }
-
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
-
-
-    function setVesting ( 
-        Vesting calldata _vest,
-        Rule[] calldata _rules
-        ) public  override     { 
-        /// @notice setVesting sets parameters of vesting, 
-        /// @param _rules - vesting schedule 
-        /// @param _vestConf - vesting parameters, see i2SVstruct.sol       
-
-        require(!isConfigured, "can't change anything");
-        if (_vest.vest2.isNative) require( _vest.vest1.token1 == ETHCODE, "Error in config native token");
-        
-        uint256 amount1;
-        uint256 amount2;            
-        for (uint8 i=0; i<_rules.length; i++) {
-            amount1 += _rules[i].amount1;
-            amount2 += _rules[i].amount2;            
-            rules.push (_rules[i]); 
-        }
-        require(amount1 == _vest.vest1.amount1 && amount2 == _vest.vest1.amount2, "Error in vest schedule"  );
-        vest = _vest;
-        isConfigured = true;
-        emit CreatedVesting(address(this),_vest, _rules);
-        emit VestStatus(address(this),CREATED);
-
-
-        }
-
-    function changeVesting ( 
-        Vesting calldata _vest,
-        Rule[] calldata _rules) public  onlyOwner  /* override */  {
-            /// @notice changing conditions of vesting before another side put their  part of funding
-            /// @dev gets stored parameters and compares each one for changing, in changed, saves new value. 
-            /// @param _rules - vesting schedule 
-            /// @param _vestConf - vesting parameters, see i2SVstruct.sol     
-        require(status < CAPPED, "Contract funded" );
-        if (vest.vest1.amount1 != _vest.vest1.amount1)  vest.vest1.amount1 = _vest.vest1.amount1;
-        if (vest.vest1.amount2 != _vest.vest1.amount2)  vest.vest1.amount2 = _vest.vest1.amount2;
-        if (vest.vest1.softCap1 != _vest.vest1.softCap1)  vest.vest1.softCap1 = _vest.vest1.softCap1;
-        if (vest.vest1.minBuy1 != _vest.vest1.minBuy1)  vest.vest1.minBuy1 = _vest.vest1.minBuy1;
-        if (vest.vest1.maxBuy1 != _vest.vest1.maxBuy1)  vest.vest1.maxBuy1 = _vest.vest1.maxBuy1;
-        if (vest.vest1.token1 != _vest.vest1.token1)  vest.vest1.token1 = _vest.vest1.token1;
-        if (vest.vest1.token2 != _vest.vest1.token2)  vest.vest1.token2 = _vest.vest1.token2;
-        if (vest.vest1.token2Id != _vest.vest1.token2Id)  vest.vest1.token2Id = _vest.vest1.token2Id;
-
-        // upffff...
-        if (vest.vest2.pausePeriod != _vest.vest2.pausePeriod)  vest.vest2.pausePeriod = _vest.vest2.pausePeriod;
-        if (vest.vest2.borrowerWallet != _vest.vest2.borrowerWallet)  vest.vest2.borrowerWallet = _vest.vest2.borrowerWallet;        
-        if (vest.vest2.vestShare4pauseWithdraw != _vest.vest2.vestShare4pauseWithdraw)  vest.vest2.vestShare4pauseWithdraw = _vest.vest2.vestShare4pauseWithdraw;    
-        if (vest.vest2.voteShareAbort != _vest.vest2.voteShareAbort)  vest.vest2.voteShareAbort = _vest.vest2.voteShareAbort;               
-        if (vest.vest2.isNative != _vest.vest2.isNative)  vest.vest2.isNative = _vest.vest2.isNative;                       
-        if (vest.vest2.prevRound != _vest.vest2.prevRound)  vest.vest2.prevRound = _vest.vest2.prevRound;   
-        if (vest.vest2.penalty != _vest.vest2.penalty)  vest.vest2.penalty = _vest.vest2.penalty;   
-        if (vest.vest2.penaltyPeriod != _vest.vest2.penaltyPeriod)  vest.vest2.penaltyPeriod = _vest.vest2.penaltyPeriod;   
-
-        uint256 amount1;
-        uint256 amount2;            
-        for (uint8 i=0; i<_rules.length; i++) {
-            if (rules[i].amount1 != _rules[i].amount1)  rules[i].amount1 = _rules[i].amount1;
-            if (rules[i].amount2 != _rules[i].amount2)  rules[i].amount2 = _rules[i].amount2;        
-            amount1 += _rules[i].amount1;
-            amount2 += _rules[i].amount2;            
-        }
-        require(amount1 == _vest.vest1.amount1 && amount2 == _vest.vest1.amount2, "Error in vest schedule"  );
-
-        
-        }
     
     function putVesting (address _token, address _recepient, uint256 _amount) public override  payable {
     /// @notice accepts vesting payments from both sides 
@@ -178,7 +35,7 @@ contract VestCollateral is  /* OwnableInit, */ i2SV {
                 if (vest.vest1.minBuy1 > 0)  require(msg.value >= vest.vest1.minBuy1, "amount must be greater minBuy");
             } else {
                 if (vest.vest1.minBuy1 > 0) require(_amount >= vest.vest1.minBuy1, "amount must be greater minBuy");
-                IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+                IERC20(_token).transferFrom(msg.sender, address(this), _amount/* .add( _amount.mul(fee).div(1000)) */);
             }
             if (status < CAPPED) { //msg.sender != vest.vest2.borrowerWallet
                 
@@ -191,23 +48,14 @@ contract VestCollateral is  /* OwnableInit, */ i2SV {
         } else if (_token == vest.vest1.token2)  {
             raisedToken2 = raisedToken2.add( _amount);
             require(raisedToken2 <= vest.vest1.amount2, "Token2 capped");
-            IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+            IERC20(_token).transferFrom(msg.sender, address(this), _amount/* .add( _amount.mul(fee).div(1000)) */);
         }
          
         vested[_token][_recepient] = curVest;
         emit Vested(address(this), _token, _recepient, _amount); 
     } 
     {
-/*         if (vest.vest1.softCap1 >0 && //softCap case
-            raisedToken1 >= vest.vest1.softCap1 &&             
-            ((vest.vest2.isNative && address(this).balance >=  vest.vest1.softCap1) ||
-            (!vest.vest2.isNative && IERC20(vest.vest1.token1).balanceOf(address(this)) >= vest.vest1.softCap1))
-            ) {
-                status = SOFTCAPPED;
-                emit VestStatus(address(this),status);
 
-            } */
-        
 
         if (raisedToken1 >= vest.vest1.amount1 && 
             raisedToken2 >= vest.vest1.amount2 &&
@@ -222,23 +70,8 @@ contract VestCollateral is  /* OwnableInit, */ i2SV {
         
     }
         }
-    
-/*     function startSoftCapped (bool _start )  public {
-        require(vested[vest.vest1.token1][msg.sender] > 0 || vested[vest.vest1.token2][msg.sender]>0 , "only vestor can start " );
-        if (status >= SOFTCAPPED && _start ) status = STARTED;
-        emit VestStatus(address(this),status);
 
-    } 
-
-    function isPaused () public view returns (bool) {
-        for (uint8 i=0; i<pauses.length; i++){            
-            if (pauses[i].pauseTime > 0 && block.timestamp < pauses[i].pauseTime+vest.vest2.pausePeriod) return true;
-        }
-        return false;
-    } 
-
-*/
-    function availableClaimToken1 () public view returns (uint256 avAmount) {
+    function availableClaimToken1 () public view override returns (uint256 avAmount) {
         /// @notice calculates  available amount of token1 for claiming by team
         /// @dev in web3-like libs call with {from} key!
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
@@ -258,7 +91,7 @@ contract VestCollateral is  /* OwnableInit, */ i2SV {
 
 
 
-    function claimWithdrawToken1(uint256 _amount) public  { 
+    function claimWithdrawToken1(uint256 _amount) public override  { 
         /// @notice withdraw _amount of ERC20 or native tokens. In this version claimWithdrawToken1 uses by borrower to withdraw of loan body , for legacy reasons,  and all amount1 sum will withdrawed for one transaction.
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @param _amount - uint256 (not used here, saved for legacy ) desired amount of  claiming token , 
@@ -273,7 +106,7 @@ contract VestCollateral is  /* OwnableInit, */ i2SV {
             payable(vest.vest2.borrowerWallet).transfer(_amount);
         }
         else { 
-            IERC20(vest.vest1.token1).transfer(vest.vest2.borrowerWallet, _amount);            
+            IERC20(vest.vest1.token1).transfer(vest.vest2.borrowerWallet, _amount.sub( _amount.mul(fee).div(1000)));            
          }
                 
         emit Claimed(address(this), vest.vest1.token1, msg.sender, _amount);
@@ -284,7 +117,7 @@ contract VestCollateral is  /* OwnableInit, */ i2SV {
 
  /// @notice  
 
-    function availableClaimToken2 () public view returns (uint256 avAmount) {
+    function availableClaimToken2 () public view override returns (uint256 avAmount) {
         /// @notice calculates  available amount of token2 for claiming by vestors
         /// @dev in web3-like libs call with {from} key!
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
@@ -301,7 +134,24 @@ contract VestCollateral is  /* OwnableInit, */ i2SV {
             avAmount = avAmount.sub(refundToken1).mul(vested[vest.vest1.token1][msg.sender]).div(raisedToken1); //todo check withdrawedRefund1 or  refundToken1
             avAmount = avAmount.sub(withdrawed[vest.vest1.token2][msg.sender]);        
     } 
+    
+    /// make integration
+    function calcAmountandPenalty () public view returns (uint256 avAmount, uint256 penalty) {
+        uint lastPaymentAmount;
 
+        if ( status == ABORTED || status < LOANWITHDRAWED)  return (0, 0);
+            for (uint8 i=0; i<rules.length; i++) { 
+                if (rules[i].claimTime <= block.timestamp){                
+                    avAmount = avAmount.add( rules[i].amount1); 
+                    lastPaymentAmount = rules[i].amount1;
+            }
+            }
+            avAmount = avAmount.sub(withdrawedRefund1);
+            if (avAmount > lastPaymentAmount) {
+                // penalty here
+                penalty = vest.vest2.penalty; 
+            }
+    }
     function claimWithdrawToken2(uint256 _withdrAmount) public override { 
         /// @notice withdraw _withdrAmount of ERC20 or native tokens.  In this version  uses for creditor's side,, for legacy reasons, it try to withdraw to creditor token1 and, in amount is not enough - proportional sum of pledged token2 
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
@@ -317,33 +167,33 @@ contract VestCollateral is  /* OwnableInit, */ i2SV {
         uint256 withdrAmount2 = _withdrAmount.mul(vest.vest1.amount2).div(vest.vest1.amount1);
         if (vest.vest2.isNative ) {
             if (address(this).balance >= _withdrAmount) {
-                payable(msg.sender).transfer(_withdrAmount);
+                payable(msg.sender).transfer(_withdrAmount.sub( _withdrAmount.mul(fee).div(1000)));
                 emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
 
            } else {
                 _withdrAmount = address(this).balance;
-                payable(msg.sender).transfer(_withdrAmount);
+                payable(msg.sender).transfer(_withdrAmount.sub( _withdrAmount.mul(fee).div(1000)));
                 emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
                 avAmount = _withdrAmount.mul(vest.vest1.amount2).div(vest.vest1.amount1);
                 withdrAmount2 = _withdrAmount.sub(avAmount);
-                IERC20(vest.vest1.token2).transfer( msg.sender, withdrAmount2);
+                IERC20(vest.vest1.token2).transfer( msg.sender, withdrAmount2.sub( withdrAmount2.mul(fee).div(1000)));
                 emit Claimed(address(this), vest.vest1.token2, msg.sender, withdrAmount2);
 
            }
         }
         else { 
             if ( IERC20(vest.vest1.token1 ).balanceOf(address(this)) >= _withdrAmount){ 
-                IERC20(vest.vest1.token1).transfer(msg.sender, _withdrAmount);            
+                IERC20(vest.vest1.token1).transfer(msg.sender, _withdrAmount.sub( _withdrAmount.mul(fee).div(1000)));            
                 emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
 
 
             } else {
                 _withdrAmount =  IERC20(vest.vest1.token1 ).balanceOf(address(this));
-                IERC20(vest.vest1.token1).transfer(msg.sender, _withdrAmount);            
+                IERC20(vest.vest1.token1).transfer(msg.sender, _withdrAmount.sub( _withdrAmount.mul(fee).div(1000)));            
                 emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
                 avAmount = _withdrAmount.mul(vest.vest1.amount2).div(vest.vest1.amount1);
                 withdrAmount2 = withdrAmount2.sub(avAmount);
-                IERC20(vest.vest1.token2).transfer( msg.sender, withdrAmount2);
+                IERC20(vest.vest1.token2).transfer( msg.sender, withdrAmount2.sub( withdrAmount2.mul(fee).div(1000)));
                 emit Claimed(address(this), vest.vest1.token2, msg.sender, withdrAmount2);
 
 
@@ -364,36 +214,18 @@ contract VestCollateral is  /* OwnableInit, */ i2SV {
     }
     
 
-  
-     function pauseWithdraw() public override {
+    function pauseWithdraw(string calldata _reason) public override  {
         revert ("not used here ");
+      
     } 
     
 
     function voteAbort(bool _vote) public override {
- /*        if (_vote && isPaused())  {
-            require (!voters[msg.sender], "already voted!");
-            voters[msg.sender] = true;
-            uint shareVote = vested[vest.vest1.token1][msg.sender].mul(100).div(raisedToken1);
-            shareVote = shareVote.add( vested[vest.vest1.token2][msg.sender].mul(100).div(raisedToken2));
-            votesForAbort = votesForAbort + uint16(shareVote);
-            if (status != VOTING) {
-                status = VOTING;
-                emit VestStatus(address(this), VOTING);
-                }
-            emit Voting(address(this), shareVote); 
-            if (votesForAbort >  vest.vest2.voteShareAbort ) {
-                emit VestStatus(address(this),ABORTED);
-                status = ABORTED ;
-            }
-        } else if (!isPaused()) {
-            votesForAbort =0;
-        }
-         */
+ 
         revert ("not used here "); //TBD
     }
 
-    function refund () public {
+    function refund () public override {
         require(status == FINISHED , "not finished yet, can't refund" );
 
         //refund token2 
@@ -407,13 +239,5 @@ contract VestCollateral is  /* OwnableInit, */ i2SV {
         }
     }
 
-    function getVestedTok1 () public view returns (uint256) {
-        return (vested[vest.vest1.token1][msg.sender]);
-    }
-    function getVestedTok2 () public view returns (uint256) {
-        return (vested[vest.vest1.token2][msg.sender]);
-    }
-
-    
-
+   
 }

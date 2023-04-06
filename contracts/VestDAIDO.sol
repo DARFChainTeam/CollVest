@@ -1,75 +1,17 @@
 //SPDX-License-Identifier: GPL
 
 pragma solidity >=0.4.22 <0.9.0;
-import "./interfaces/i2SV.sol";
+import "./DoubleSideVesting.sol";
 import "./interfaces/IERC20.sol";
 import "./libs/SafeMath.sol";
 /// @title Typical DAIDO vesting contract
 /// @author The name of the author
 /// @notice Explain to an end user what this does 
 /// @dev Explain to a developer any extra details
-contract VestDAIDO is i2SV {
+contract VestDAIDO is DoubleSideVesting {
     using SafeMath for uint256;
 
-    //    Statuses:     0-created, 10- capped , 20 - started, 100 - paused 200 - aborted, 255 - finished
-
-    uint8 constant CREATED = 1;
-    uint8 constant OPENED = 5;
-    uint8 constant SOFTCAPPED = 9;
-    uint8 constant CAPPED = 10;
-    uint8 constant STARTED = 20;
-    uint8 constant PAUSED = 100;
-    uint8 constant VOTING = 150;
-    uint8 constant ABORTED = 200;
-    uint8 constant REFUNDING = 220;
-    uint8 constant FINISHED = 255;
-
-
-    uint8 public status ; // (1- created, 10- capped , 20 - started, 100 - paused 200 - aborted, 255 - finished )
-    uint16 public votesForAbort;    
-    bool isConfigured;    
-    uint256 public raisedToken1; // sum raised in  token1
-    uint256 public raisedToken2;  // sum raised in  token2
-    uint256 public withdrawedToken1; // sum withdrawed in  token1
-    uint256 public withdrawedToken2;  // sum withdrawed in  token2
-
-
-    Vesting public vest;
-    
-    
-    Rule[] public rules; 
-    Withdrawpauses[] public pauses;
-    address[] public vestors;
-    
-
-    mapping(address => mapping (address => uint256)) public  vested; //token => address of user
-    mapping(address => mapping (address => uint256))  public withdrawed; //token => address of user
-    mapping(address => bool) public voters; 
-
-    address constant ETHCODE = address(0x0000000000000000000000000000000000000001);
-    /// @notice setVesting sets parameters of vesting 
-    function setVesting (
-        Vesting calldata _vest,
-        Rule[] calldata _rules
-        ) public override { 
-        require(!isConfigured, "can't change anything");
-        if (_vest.vest2.isNative) require( _vest.vest1.token1 == ETHCODE, "Error in config native token");
-        
-        uint256 amount1;
-        uint256 amount2;            
-        for (uint8 i=0; i<_rules.length; i++) {
-            amount1 += _rules[i].amount1;
-            amount2 += _rules[i].amount2;            
-            rules.push (_rules[i]); 
-        }
-        require(amount1 == _vest.vest1.amount1 && amount2 == _vest.vest1.amount2, "Error in vest schedule"  );
-        vest = _vest;
-        isConfigured = true;
-        emit CreatedVesting(address(this),_vest, _rules);
-        emit VestStatus(address(this),CREATED);
-        }
-    
-    
+      
     function putVesting (address _token, address _recepient, uint256 _amount) public override  payable {
     /// @notice accepts vesting payments from both sides 
     /// @dev divides for native and ERC20 flows
@@ -82,8 +24,8 @@ contract VestDAIDO is i2SV {
         if (vest.vest2.prevRound != address(ETHCODE) ) {
             require (VestDAIDO(vest.vest2.prevRound).status() >=CAPPED, "Didn't finished previous round"); 
         }
-        (bool ok, uint256 curVest) =  vested[_token][_recepient].tryAdd(_amount);
-        require(ok,  "curVest.tryAdd" );
+        uint256 curVest =  vested[_token][_recepient] +_amount;
+        
         if (curVest == _amount) vestors.push(_recepient);                      
         if (_token == vest.vest1.token1) {       
             if (vest.vest1.maxBuy1 > 0) require(curVest <= vest.vest1.maxBuy1, "limit of vesting overquoted for this address" );
@@ -103,7 +45,7 @@ contract VestDAIDO is i2SV {
         }
          
         vested[_token][_recepient] = curVest;
-        emit Vested(address(this), _token, msg.sender, _amount);
+        emit Vested(address(this), _token, _recepient, _amount);
     } 
     {
         if (vest.vest1.softCap1 >0 && //softCap case
@@ -138,14 +80,7 @@ contract VestDAIDO is i2SV {
 
     }
 
-    function isPaused () public view returns (bool) {
-        for (uint8 i=0; i<pauses.length; i++){            
-            if (pauses[i].pauseTime > 0 && block.timestamp < pauses[i].pauseTime+vest.vest2.pausePeriod) return true;
-        }
-        return false;
-    }
-
-    function availableClaimToken1 () public view returns (uint256 avAmount) {
+    function availableClaimToken1 () public view override returns (uint256 avAmount) {
         /// @notice calculates  available amount of token1 for claiming by team
         /// @dev in web3-like libs call with {from} key!
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
@@ -162,7 +97,7 @@ contract VestDAIDO is i2SV {
     }
 
 
-    function claimWithdrawToken1(uint256 _amount) public  {
+    function claimWithdrawToken1(uint256 _amount) public override  {
         /// @notice withdraw _amount of ERC20 or native tokens 
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @param _amount - uint256 desired amount of  claiming token , 
@@ -190,7 +125,7 @@ contract VestDAIDO is i2SV {
         }
     }
 
-    function availableClaimToken2 () public view returns (uint256 avAmount) {
+    function availableClaimToken2 () public view override  returns (uint256 avAmount) {
         /// @notice calculates  available amount of token2 for claiming by vestors
         /// @dev in web3-like libs call with {from} key!
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
@@ -230,75 +165,4 @@ contract VestDAIDO is i2SV {
         
     }
     
-
-  
-    function pauseWithdraw() public override {
-        require(vested[vest.vest1.token1][msg.sender] > vest.vest2.vestShare4pauseWithdraw * raisedToken1 /100 ||
-                vested[vest.vest1.token2][msg.sender] > vest.vest2.vestShare4pauseWithdraw * raisedToken1 /100, 
-                "Didn't vested enough to pause work"
-                );
-        pauses.push(Withdrawpauses(msg.sender, block.timestamp));
-        status = PAUSED;
-        emit VestStatus(address(this),PAUSED);
-        
-    }
-    
-
-    function voteAbort(bool _vote) public override {
-        if (_vote && isPaused())  {
-            require (!voters[msg.sender], "already voted!");
-            voters[msg.sender] = true;
-            uint shareVote = vested[vest.vest1.token1][msg.sender].mul(100).div(raisedToken1);
-            shareVote = shareVote.add( vested[vest.vest1.token2][msg.sender].mul(100).div(raisedToken2));
-            votesForAbort = votesForAbort + uint16(shareVote);
-            if (status != VOTING) {
-                status = VOTING;
-                emit VestStatus(address(this), VOTING);
-                }
-            emit Voting(address(this), shareVote); 
-            if (votesForAbort >  vest.vest2.voteShareAbort ) {
-                emit VestStatus(address(this),ABORTED);
-                status = ABORTED ;
-            }
-        } else if (!isPaused()) {
-            votesForAbort =0;
-        }
-        
-    }
-
-    function refund () public {
-        require(status == ABORTED , "Vesting works normally, can't refund" );
-        uint256 avAmount1;
-        //refund token1
-        if (vested[vest.vest1.token1][msg.sender] > 0) { 
-            avAmount1 = raisedToken1 - withdrawedToken1;//address(this).balance;
-            if (vest.vest2.isNative) {
-                // checking balance of ether
-                avAmount1 = avAmount1.mul(vested[vest.vest1.token1][msg.sender]).div(vest.vest1.amount1);
-                payable(msg.sender).transfer(avAmount1);
-            }
-            else { 
-                // checking balance of ERc20 token
-                avAmount1 = avAmount1.mul(vested[vest.vest1.token1][msg.sender]).div(vest.vest1.amount1);
-                IERC20(vest.vest1.token1).transfer( msg.sender, avAmount1);
-            }
-        }
-        //refund token2 
-        uint256 avAmount2;
-        if (vested[vest.vest1.token2][msg.sender] > 0) { 
-            avAmount2 = raisedToken2 - withdrawedToken2; //IERC20(vest.vest1.token2).balanceOf(address(this));
-            avAmount2 = avAmount2.mul(vested[vest.vest1.token2][msg.sender]).div(vest.vest1.amount2);
-            IERC20(vest.vest1.token2).transfer( msg.sender, avAmount2);
-        }
-    }
-
-    function getVestedTok1 () public view returns (uint256) {
-        return (vested[vest.vest1.token1][msg.sender]);
-    }
-    function getVestedTok2 () public view returns (uint256) {
-        return (vested[vest.vest1.token2][msg.sender]);
-    }
-
-    
-
 }

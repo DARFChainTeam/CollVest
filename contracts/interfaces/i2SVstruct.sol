@@ -10,9 +10,10 @@ interface i2SVstruct {
         uint256 claimTime; // block.timestamp marks end of vesting period
     }
 
-    struct Withdrawpauses {
+    struct WithdrawPauses {
         address initiator; //who pauses withdrawing
         uint256 pauseTime; //time pauses withdrawing
+        string reason; 
     }
     struct Vesting{
         Vesting1 vest1;
@@ -38,7 +39,7 @@ interface i2SVstruct {
         address prevRound;
         uint256 penalty;
         uint256 penaltyPeriod;
-
+        uint256 capFinishTime; // time when cap will be achieved
     } 
 
     event CreatedVesting ( address indexed, Vesting, Rule[]); //vesting contract, terms,  conditions
