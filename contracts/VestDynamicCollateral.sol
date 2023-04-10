@@ -118,7 +118,7 @@ contract VestDynamicCollateral is DoubleSideVesting {
 
 
 
-    function claimWithdrawToken1(uint256 _amount) public override  { 
+    function claimWithdrawToken1(uint256 _amount) public override nonReentrant  { 
         /// @notice withdraw _amount of ERC20 or native tokens. In this version claimWithdrawToken1 uses by borrower to withdraw of loan body , for legacy reasons,  and all amount1 sum will withdrawed for one transaction.
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @param _amount - uint256 (not used here, saved for legacy ) desired amount of  claiming token , 
@@ -133,7 +133,7 @@ contract VestDynamicCollateral is DoubleSideVesting {
             payable(vest.vest2.borrowerWallet).transfer(_amount);
         }
         else { 
-            IERC20(vest.vest1.token1).transfer(vest.vest2.borrowerWallet, _amount);            
+            IERC20(vest.vest1.token1).transfer(vest.vest2.borrowerWallet, _amount.sub( _amount.mul(fee).div(1000)));            
          }
                 
         emit Claimed(address(this), vest.vest1.token1, msg.sender, _amount);
@@ -162,7 +162,7 @@ contract VestDynamicCollateral is DoubleSideVesting {
             avAmount = avAmount.sub(withdrawed[vest.vest1.token2][msg.sender]);        
     } 
 
-    function claimWithdrawToken2(uint256 _withdrAmount) public override { 
+    function claimWithdrawToken2(uint256 _withdrAmount) public  nonReentrant override { 
         /// @notice withdraw _withdrAmount of ERC20 or native tokens.  In this version  uses for creditor's side,, for legacy reasons, it try to withdraw to creditor token1 and, in amount is not enough - proportional sum of pledged token2 
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @param _withdrAmount - uint256 desired amount of  claiming token , 
@@ -187,6 +187,7 @@ contract VestDynamicCollateral is DoubleSideVesting {
                 (uint res1, uint res2) = checkReserves();
                 avAmount = _withdrAmount.mul(res2).div(res1);
                 withdrAmount2 = _withdrAmount.sub(avAmount);
+                //TODO calculate fee in Token1 for pledger 
                 IERC20(vest.vest1.token2).transfer( msg.sender, withdrAmount2);
                 emit Claimed(address(this), vest.vest1.token2, msg.sender, withdrAmount2);
 
@@ -194,16 +195,17 @@ contract VestDynamicCollateral is DoubleSideVesting {
         }
         else { 
             if ( IERC20(vest.vest1.token1 ).balanceOf(address(this)) >= _withdrAmount){ 
-                IERC20(vest.vest1.token1).transfer(msg.sender, _withdrAmount);            
+                IERC20(vest.vest1.token1).transfer(msg.sender, _withdrAmount.sub( _withdrAmount.mul(fee).div(1000)));            
                 emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
 
 
             } else {
                 _withdrAmount =  IERC20(vest.vest1.token1 ).balanceOf(address(this));
-                IERC20(vest.vest1.token1).transfer(msg.sender, _withdrAmount);            
+                IERC20(vest.vest1.token1).transfer(msg.sender, _withdrAmount.sub( _withdrAmount.mul(fee).div(1000)));            
                 emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
                 avAmount = _withdrAmount.mul(vest.vest1.amount2).div(vest.vest1.amount1);
                 withdrAmount2 = withdrAmount2.sub(avAmount);
+                //TODO calculate fee in Token1 for pledger 
                 IERC20(vest.vest1.token2).transfer( msg.sender, withdrAmount2);
                 emit Claimed(address(this), vest.vest1.token2, msg.sender, withdrAmount2);
 

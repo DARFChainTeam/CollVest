@@ -91,7 +91,7 @@ contract VestCollateral is  DoubleSideVesting  {
 
 
 
-    function claimWithdrawToken1(uint256 _amount) public override  { 
+    function claimWithdrawToken1(uint256 _amount) public override nonReentrant  { 
         /// @notice withdraw _amount of ERC20 or native tokens. In this version claimWithdrawToken1 uses by borrower to withdraw of loan body , for legacy reasons,  and all amount1 sum will withdrawed for one transaction.
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @param _amount - uint256 (not used here, saved for legacy ) desired amount of  claiming token , 
@@ -103,7 +103,7 @@ contract VestCollateral is  DoubleSideVesting  {
         withdrawed[vest.vest1.token1][vest.vest2.borrowerWallet] =  withdrawed[vest.vest1.token1][vest.vest2.borrowerWallet].add(_amount);
         withdrawedToken1 = withdrawedToken1.add(_amount);
         if (vest.vest2.isNative) {
-            payable(vest.vest2.borrowerWallet).transfer(_amount);
+            payable(vest.vest2.borrowerWallet).transfer(_amount.sub( _amount.mul(fee).div(1000)));
         }
         else { 
             IERC20(vest.vest1.token1).transfer(vest.vest2.borrowerWallet, _amount.sub( _amount.mul(fee).div(1000)));            
@@ -152,8 +152,8 @@ contract VestCollateral is  DoubleSideVesting  {
                 penalty = vest.vest2.penalty; 
             }
     }
-    function claimWithdrawToken2(uint256 _withdrAmount) public override { 
-        /// @notice withdraw _withdrAmount of ERC20 or native tokens.  In this version  uses for creditor's side,, for legacy reasons, it try to withdraw to creditor token1 and, in amount is not enough - proportional sum of pledged token2 
+    function claimWithdrawToken2(uint256 _withdrAmount) public   nonReentrant override { 
+        /// @notice withdraw _withdrAmount of ERC20 or native tokens.  In this version  uses for creditor's side, for legacy reasons, it try to withdraw to creditor token1 and, in amount is not enough - proportional sum of pledged token2 
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @param _withdrAmount - uint256 desired amount of  claiming token , 
 
@@ -176,6 +176,7 @@ contract VestCollateral is  DoubleSideVesting  {
                 emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
                 avAmount = _withdrAmount.mul(vest.vest1.amount2).div(vest.vest1.amount1);
                 withdrAmount2 = _withdrAmount.sub(avAmount);
+                //TODO calculate fee in Token1 for pledger 
                 IERC20(vest.vest1.token2).transfer( msg.sender, withdrAmount2.sub( withdrAmount2.mul(fee).div(1000)));
                 emit Claimed(address(this), vest.vest1.token2, msg.sender, withdrAmount2);
 

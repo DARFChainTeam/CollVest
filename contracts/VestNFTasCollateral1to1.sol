@@ -89,7 +89,7 @@ contract VestNFTasCollateral1to1 is DoubleSideVesting, IERC721Receiver  {
 
 
 
-    function claimWithdrawToken1(uint256 _amount) public override  { 
+    function claimWithdrawToken1(uint256 _amount) public override nonReentrant  { 
         /// @notice withdraw _amount of ERC20 or native tokens. In this version claimWithdrawToken1 uses by borrower to withdraw of loan body , for legacy reasons,  and all amount1 sum will withdrawed for one transaction.
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @param _amount - uint256 (not used here, saved for legacy ) desired amount of  claiming token , in this version VestNFTasCollateral1to1  don't used because of borrower have to claim al sum at once.
@@ -104,7 +104,7 @@ contract VestNFTasCollateral1to1 is DoubleSideVesting, IERC721Receiver  {
         //     payable(vest.vest2.borrowerWallet).transfer(avAmount);
         // }
         // else { 
-        IERC20(vest.vest1.token1).transfer(vest.vest2.borrowerWallet, avAmount);            
+            IERC20(vest.vest1.token1).transfer(vest.vest2.borrowerWallet, _amount.sub( _amount.mul(fee).div(1000)));            
         //  } //isNative
                 
         emit Claimed(address(this), vest.vest1.token1, msg.sender, avAmount);
@@ -146,32 +146,26 @@ contract VestNFTasCollateral1to1 is DoubleSideVesting, IERC721Receiver  {
 
     } 
 
-    function claimWithdrawToken2(uint256 _withdrAmount) public override  { 
+    function claimWithdrawToken2(uint256 _withdrAmount) public  nonReentrant override  { 
         /// @notice withdraw _withdrAmount of ERC20 or native tokens.  In this version  uses for creditor's side, for legacy reasons, it try to withdraw to creditor token1 and, in amount is not enough - proportional sum of pledged token2 
-  
         /// @param _withdrAmount - uint256 desired amount of  claiming token , 
 
         // require(status >= LOANWITHDRAWED,  "Loan didn't withdrawed");
-       
-        // uint256 avAmount = availableClaimToken1();
+
         (uint256 avAmount, uint256 penalty) = calcAmountandPenalty();
         require(avAmount >= _withdrAmount, "No available amount for withdraw" );
-
-
-            if ( IERC20(vest.vest1.token1 ).balanceOf(address(this)) >= _withdrAmount){ 
-                IERC20(vest.vest1.token1).transfer(msg.sender, _withdrAmount);            
+            if (IERC20(vest.vest1.token1).balanceOf(address(this)) >= _withdrAmount){ 
+                IERC20(vest.vest1.token1).transfer(msg.sender, _withdrAmount.sub( _withdrAmount.mul(fee).div(1000)));            
                 emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
-
             } else {
                 _withdrAmount =  IERC20(vest.vest1.token1 ).balanceOf(address(this));
-                IERC20(vest.vest1.token1).transfer(msg.sender, _withdrAmount);            
+                IERC20(vest.vest1.token1).transfer(msg.sender, _withdrAmount.sub( _withdrAmount.mul(fee).div(1000)));            
                 emit Claimed(address(this), vest.vest1.token1, msg.sender, _withdrAmount);
                 if (penalty > 0 && block.timestamp - lastPaymentDate > vest.vest2.penaltyPeriod ) { ///@notice creditor get NFT pledge 
                     IERC721(vest.vest1.token2).transferFrom(address(this), msg.sender, vest.vest1.token2Id);
                     emit Claimed(address(this), vest.vest1.token2, msg.sender, vest.vest1.token2Id);
                 }
             }
-      //  } //isNative
 
         withdrawed[vest.vest1.token1][msg.sender] = withdrawed[vest.vest1.token1][msg.sender].add(_withdrAmount);
         withdrawedRefund1 = withdrawedRefund1.add(_withdrAmount);
@@ -186,7 +180,6 @@ contract VestNFTasCollateral1to1 is DoubleSideVesting, IERC721Receiver  {
     }
     
 
-  
     function pauseWithdraw(string calldata _reason) public override {
         revert ("not used here ");
     } 

@@ -97,7 +97,7 @@ contract VestDAIDO is DoubleSideVesting {
     }
 
 
-    function claimWithdrawToken1(uint256 _amount) public override  {
+    function claimWithdrawToken1(uint256 _amount) public override nonReentrant  {
         /// @notice withdraw _amount of ERC20 or native tokens 
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @param _amount - uint256 desired amount of  claiming token , 
@@ -116,7 +116,7 @@ contract VestDAIDO is DoubleSideVesting {
             payable(vest.vest2.borrowerWallet).transfer(_amount);
         }
         else { 
-            IERC20(vest.vest1.token1).transfer(vest.vest2.borrowerWallet, _amount);            
+            IERC20(vest.vest1.token1).transfer(vest.vest2.borrowerWallet, _amount.sub( _amount.mul(fee).div(1000)));            
          }
         emit Claimed(address(this), vest.vest1.token1, msg.sender, _amount);
         if (raisedToken1 == withdrawedToken1 && raisedToken2 == withdrawedToken2) { 
@@ -143,7 +143,7 @@ contract VestDAIDO is DoubleSideVesting {
             avAmount = avAmount.sub(withdrawed[vest.vest1.token2][msg.sender]);        
     } 
 
-    function claimWithdrawToken2(uint256 _amount) public override { 
+    function  claimWithdrawToken2 (uint256 _amount) public  override  { 
         /// @notice withdraw _amount of ERC20 or native tokens 
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @param _amount - uint256 desired amount of  claiming token , 
@@ -156,7 +156,19 @@ contract VestDAIDO is DoubleSideVesting {
         require(_amount <= avAmount, "No enough amount for withdraw");
         withdrawed[vest.vest1.token2][msg.sender] = withdrawed[vest.vest1.token2][msg.sender].add(_amount);
         withdrawedToken2 = withdrawedToken2.add(_amount);
-        IERC20(vest.vest1.token2).transfer( msg.sender, _amount);
+        //TODO calculate fee in Token1 for pledger 
+        uint256 feeSum = uint256(fee).mul(_amount).mul (vest.vest1.amount2).div(vest.vest1.amount1).div (1000);
+        
+        if (vest.vest2.isNative) {
+            //todo if vesting made in native coins of chain - have some issues with inheritance of  claimWithdrawToken2 to charge as payable function - need solve
+            // now using old-style of charging in vested token2
+            IERC20(vest.vest1.token2).transfer( msg.sender, _amount.sub( _amount.mul(fee).div(1000)));           
+
+        }
+        else {
+            IERC20(vest.vest1.token1).transferFrom( msg.sender, address(this), feeSum);
+        }
+        
         emit Claimed(address(this), vest.vest1.token2, msg.sender, _amount);
         if (raisedToken1 == withdrawedToken1 && raisedToken2 == withdrawedToken2) { 
             status = FINISHED;

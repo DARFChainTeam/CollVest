@@ -4,11 +4,12 @@ pragma solidity >=0.4.22 <0.9.0;
 import "./interfaces/i2SV.sol";
 import "./interfaces/IERC20.sol";
 import "./libs/SafeMath.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 /// @title Typical DAIDO vesting contract
 /// @author The name of the author
 /// @notice Explain to an end user what this does 
 /// @dev Explain to a developer any extra details
-abstract contract DoubleSideVesting is  i2SV {
+abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
     using SafeMath for uint256;
 
     //    Statuses:     0-created, 10- capped , 20 - started, 100 - paused 200 - aborted, 255 - finished
@@ -51,7 +52,7 @@ abstract contract DoubleSideVesting is  i2SV {
     address private owner_;
     address private factory;
     address private treasure;
-    uint8  fee ; // 5/1000 = 0,5%
+    uint8 public fee ; // 5/1000 = 0,5%
     bool nonInitialised = true;
 
 
@@ -293,7 +294,7 @@ abstract contract DoubleSideVesting is  i2SV {
             avAmount = avAmount.sub(withdrawed[vest.vest1.token2][msg.sender]);         */
     } 
 
-    function claimWithdrawToken2(uint256 _amount) public virtual override { 
+    function claimWithdrawToken2(uint256 _amount) public virtual { 
         /// @notice withdraw _amount of ERC20 or native tokens 
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @param _amount - uint256 desired amount of  claiming token , 
