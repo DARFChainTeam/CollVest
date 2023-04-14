@@ -4,10 +4,10 @@ pragma solidity >=0.4.22 <0.9.0;
 import "./DoubleSideVesting.sol";
 import "./interfaces/IERC20.sol";
 import "./libs/SafeMath.sol";
-/// @title Typical DAIDO vesting contract
-/// @author The name of the author
-/// @notice Explain to an end user what this does 
-/// @dev Explain to a developer any extra details
+/// @title Typical DAIDO  vesting contract
+/// @author @Stanta
+/// @notice The team has issued tokens on TGE first time  and wants to sell them to a group of investors. Investors want to control the progress of the project. Thats why unlock for both sides goes step-by-step.
+
 contract VestDAIDO is DoubleSideVesting {
     using SafeMath for uint256;
 
@@ -21,13 +21,14 @@ contract VestDAIDO is DoubleSideVesting {
 
     /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
     {   
-        if (vest.vest2.prevRound != address(ETHCODE) ) {
-            require (VestDAIDO(vest.vest2.prevRound).status() >=CAPPED, "Didn't finished previous round"); 
-        }
+
         uint256 curVest =  vested[_token][_recepient] +_amount;
         
         if (curVest == _amount) vestors.push(_recepient);                      
         if (_token == vest.vest1.token1) {       
+            if (vest.vest2.prevRound != address(ETHCODE) ) {
+                require (VestDAIDO(vest.vest2.prevRound).status() >=CAPPED, "Didn't finished previous round"); 
+            }            
             if (vest.vest1.maxBuy1 > 0) require(curVest <= vest.vest1.maxBuy1, "limit of vesting overquoted for this address" );
             if (vest.vest2.isNative){ // payments with native token                     
                 require(_amount == msg.value, "amount must be equal to sent ether");

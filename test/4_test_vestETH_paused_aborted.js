@@ -64,13 +64,30 @@ it('Deploy test  2side vesting contract ', async () => {
       isNative: true,
       prevRound:ETHCODE, //no prev round
       penalty: 0,
-      penaltyPeriod: 0      
+      penaltyPeriod: 0,
+      capFinishTime: 0
+
      }
   }
+  await t2.transfer(borrowerWallet, startVestConf.vest1.amount2);
+  const balance = (await t2.balanceOf(borrowerWallet)).toNumber();
+  assert.equal(balance, startVestConf.vest1.amount2, "didn't transfer startVestConf.vest1.amount2");
+
+
+  const balanceT2_9= (await t2.balanceOf(accounts[9])).toNumber();;
+
+  await t2.approve(dSVFact.address,startVestConf.vest1.amount2, {from:borrowerWallet});
+
   const txDepl = await dSVFact.deployVest (
+    t2.address, 
+    borrowerWallet,
+    startVestConf.vest1.amount2,
     vestRules,
-    startVestConf
+    startVestConf,
+    {from:borrowerWallet}
   );
+  
+
   
   vestContractAddr = txDepl.logs[0].args[0];
   const eventConf = txDepl.logs[0].args[1];
@@ -110,37 +127,6 @@ it('should send amount1 of token1 to  vesting contract', async () => {
 });
 
   
-
-  it('should send amount2 of token2 to  vesting contract', async () => {
-    // let snapshot = await timeMachine.takeSnapshot();
-    // snapshotId = snapshot['result'];
-
-    const t2 = await Token2.deployed();
-  //  const balance = await t2.balanceOf(accounts[0])
-
-    await t2.transfer(borrowerWallet, startVestConf.vest1.amount2);
-    const balance = (await t2.balanceOf(borrowerWallet)).toNumber();
-    assert.equal(balance, startVestConf.vest1.amount2, "didn't transfer startVestConf.vest1.amount2");
-
-
-    const vestContract = await VestContract.at(vestContractAddr);
-    const balanceT2_9= (await t2.balanceOf(accounts[9])).toNumber();;
-
-    await t2.approve(vestContractAddr,startVestConf.vest1.amount2, {from:borrowerWallet});
-    await vestContract.putVesting(t2.address, borrowerWallet, startVestConf.vest1.amount2 /2 , {from:borrowerWallet} )
-    
-    // const allowanceT2 =  ( await t2.allowance(accounts[0], vestContractAddr )).toNumber();
-    await t2.approve(vestContractAddr,startVestConf.vest1.amount2, {from:accounts[0]});
-
-    //TODO - strange bug, cant invest from acc[0]
-    await vestContract.putVesting(t2.address, borrowerWallet, startVestConf.vest1.amount2/2, {from: accounts[0]});
-
-    const vested9 = await vestContract.getVestedTok2( {from: borrowerWallet} ); 
-    assert.equal(startVestConf.vest1.amount2, vested9/* [1] */.toNumber(), "vested9");
-
-
-  });
-
 
   it('vesting funded', async () => {
     const vestContract = await VestContract.at(vestContractAddr);
@@ -225,7 +211,7 @@ it('should send amount1 of token1 to  vesting contract', async () => {
     let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
     assert.equal (av2claimt1, startVestConf.vest1.amount1 /3, "amount t1 3rd month ")
 
-    await vestContract. pauseWithdraw({from: accounts[1]}) ;
+    await vestContract. pauseWithdraw("DAMN!", {from: accounts[1]}) ;
     try {
       await vestContract.claimWithdrawToken1( 1 ) ;
 

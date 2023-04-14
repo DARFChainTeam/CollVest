@@ -5,9 +5,9 @@ import "./DoubleSideVesting.sol";
 import "./interfaces/IERC20.sol";
 import "./libs/SafeMath.sol";
 import "./libs/UniswapV2Library.sol";
-/// @title Typical DAIDO vesting contract
-/// @author The name of the author
-/// @notice Explain to an end user what this does 
+/// @title Typical dynamic Collateral vesting contract
+/// @author Stanta
+/// @notice Party1 (Lender) has (for example) stablecoins and wants to lend them to Party2 (Borrower) against the security of liquid assets (which are on AMMs like Uni-/Pancakeswap). The borrower repays the loan in regular payments. The sufficiency of collateral security is controlled by a request for quotations to AMM.
 /// @dev Explain to a developer any extra details
 contract VestDynamicCollateral is DoubleSideVesting {
     using SafeMath for uint256;
@@ -28,7 +28,7 @@ contract VestDynamicCollateral is DoubleSideVesting {
 
     /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
     {   
-
+        require(vest.vest2.capFinishTime == 0 || vest.vest2.capFinishTime < block.timestamp, "time for vest out" );
         (bool ok, uint256 curVest) =  vested[_token][_recepient].tryAdd(_amount);
         require(ok,  "curVest.tryAdd" );
         if (curVest == _amount) vestors.push(_recepient);                      

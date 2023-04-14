@@ -7,9 +7,9 @@ import "./libs/SafeMath.sol";
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-/// @title Typical DAIDO vesting contract
-/// @author The name of the author
-/// @notice Explain to an end user what this does 
+/// @title Typical NFT Collateral vesting contract
+/// @author @Stanta
+/// @notice Party1 (Lender) has (for example) stablecoins and wants to lend them to Party2 (Borrower) against the NFT. The borrower repays the loan in regular payments
 /// @dev Explain to a developer any extra details
 contract VestNFTasCollateral1to1 is DoubleSideVesting, IERC721Receiver  { 
     using SafeMath for uint256;
@@ -27,6 +27,7 @@ contract VestNFTasCollateral1to1 is DoubleSideVesting, IERC721Receiver  {
     /// @param  _token - address of payment token,  "0x01" for native blockchain tokens 
     /// @param  _recepient - address of wallet, who can claim tokens
     /// @param  _amount - sum of vesting payment in wei 
+        require(vest.vest2.capFinishTime == 0 || vest.vest2.capFinishTime < block.timestamp, "time for vest out" );
         if (msg.sender == vest.vest2.borrowerWallet) { 
             
                 IERC20(vest.vest1.token1).transferFrom(msg.sender, address(this), _amount);

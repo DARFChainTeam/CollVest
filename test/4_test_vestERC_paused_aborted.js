@@ -67,15 +67,26 @@ let snapshotId;
         isNative: false,
         prevRound:ETHCODE, //noprevround
         penalty: 0,
-        penaltyPeriod: 0        
+        penaltyPeriod: 0,
+        capFinishTime: 0
+        
        }
     }
     
+    await t1.transfer(accounts[1], startVestConf.vest1.amount1 /3, {from:accounts[0]});
+    await t1.transfer(accounts[1], startVestConf.vest1.amount1 /3, {from:accounts[0]});
+    await t1.approve(dSVFact.address, startVestConf.vest1.amount1 /3, {from:accounts[1]});
+
     const txDepl = await dSVFact.deployVest (
+      t1.address, 
+      accounts[1],
+      startVestConf.vest1.amount1 /3,
       vestRules,
-      startVestConf
+      startVestConf,
+      {from:accounts[1]}
     );
     
+
     vestContractAddr = txDepl.logs[0].args[0];
     const eventConf  = txDepl.logs[0].args[1];
     const eventRules = txDepl.logs[0].args[2]
@@ -95,21 +106,16 @@ let snapshotId;
   it('should send amount1 of token1 to  vesting contract', async () => {
     const t1 = await Token1.deployed();
 
-
-    await t1.transfer(accounts[1], startVestConf.vest1.amount1 /3, {from:accounts[0]});
     await t1.transfer(accounts[2], startVestConf.vest1.amount1 /3, {from:accounts[0]});
     await t1.transfer(accounts[3], startVestConf.vest1.amount1 /3, {from:accounts[0]});
     
-    await t1.approve(vestContractAddr, startVestConf.vest1.amount1 /3, {from:accounts[1]});
     await t1.approve(vestContractAddr, startVestConf.vest1.amount1 /3, {from:accounts[2]});
     await t1.approve(vestContractAddr, startVestConf.vest1.amount1 /3, {from:accounts[3]});
 
     const vestContract = await VestContract.at(vestContractAddr);
 
-    await vestContract.putVesting(startVestConf.vest1.token1, accounts[1], startVestConf.vest1.amount1 /3, {from:accounts[1], value:startVestConf.vest1.amount1 /3} )
     await vestContract.putVesting(startVestConf.vest1.token1, accounts[2], startVestConf.vest1.amount1 /3, {from:accounts[2], value:startVestConf.vest1.amount1 /3} )
     await vestContract.putVesting(startVestConf.vest1.token1, accounts[3], startVestConf.vest1.amount1 /3, {from:accounts[3], value:startVestConf.vest1.amount1 /3} )
-
 
     const vested1 = await vestContract.getVestedTok1( {from: accounts[1]} ); 
     const vested2 = await vestContract.getVestedTok1( {from: accounts[2]} ); 
@@ -238,7 +244,7 @@ let snapshotId;
     let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
     assert.equal (av2claimt1, startVestConf.vest1.amount1 /3, "amount t1 3rd month ")
 
-    await vestContract. pauseWithdraw({from: accounts[1]}) ;
+    await vestContract. pauseWithdraw("DAMN!", {from: accounts[1]}) ;
     try {
       await vestContract.claimWithdrawToken1( 1 ) ;
 

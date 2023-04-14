@@ -5,10 +5,10 @@ import "./interfaces/i2SV.sol";
 import "./interfaces/IERC20.sol";
 import "./libs/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-/// @title Typical DAIDO vesting contract
-/// @author The name of the author
-/// @notice Explain to an end user what this does 
-/// @dev Explain to a developer any extra details
+/// @title Typical DoubleSideVesting vesting contract
+/// @author @stanta
+/// @notice The team has issued tokens on TGE (again) and wants to sell them to a group of investors. Investors want to control the progress of the project. Thats why unlock for both sides goes step-by-step.
+/// @dev TBD 
 abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
     using SafeMath for uint256;
 
@@ -57,7 +57,7 @@ abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
 
 
     function initialize (address _owner, address _treasure, uint8 _fee ) override public {
-        require(nonInitialised, "Admin already set");
+        require(!nonInitialised, "Admin already set");
         owner_ = _owner;
         treasure = _treasure;
         factory = _msgSender();
@@ -164,7 +164,8 @@ abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
     /// @param  _amount - sum of vesting payment in wei 
 
     /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
-/*     {   
+     {   
+        require(vest.vest2.capFinishTime == 0 || vest.vest2.capFinishTime < block.timestamp, "time for vest out" );
         if (vest.vest2.prevRound != address(ETHCODE) ) {
             require (DoubleSideVesting(vest.vest2.prevRound).status() >=CAPPED, "Didn't finished previous round"); 
         }
@@ -214,7 +215,7 @@ abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
 
             }
         
-    } */
+    } 
         }
     /* 
     function startSoftCapped (bool _start )  public {
@@ -237,14 +238,14 @@ abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @return uint256- available amount of _token for claiming 
         /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
-/*         if ( isPaused() ||  status == ABORTED || status < CAPPED)  return 0;
+         if ( isPaused() ||  status == ABORTED || status < CAPPED)  return 0;
         for (uint8 i=0; i<rules.length; i++) { 
             if (rules[i].claimTime <= block.timestamp){
                 uint256 inc = rules[i].amount1.mul(raisedToken1).div(vest.vest1.amount1);
                 avAmount = avAmount.add(inc);
            }
         }
-          avAmount =  avAmount.sub(withdrawed[vest.vest1.token1][vest.vest2.borrowerWallet]); */        
+          avAmount =  avAmount.sub(withdrawed[vest.vest1.token1][vest.vest2.borrowerWallet]);         
     }
 
 
@@ -253,7 +254,7 @@ abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @param _amount - uint256 desired amount of  claiming token , 
 
-  /*       require(!isPaused(), "Withdraw paused by participant");
+         require(!isPaused(), "Withdraw paused by participant");
         require(status != ABORTED , "Vesting aborted");
         require(status >= CAPPED,  "Vesting not capped");
 //        require(msg.sender == vest.borrowerWallet, "just call from borrowerWallet"); //tbd is necessary or not?
@@ -273,7 +274,7 @@ abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
         if (raisedToken1 == withdrawedToken1 && raisedToken2 == withdrawedToken2) { 
             status = FINISHED;
             emit Finished (address(this));
-        } */
+        } 
     }
 
     function availableClaimToken2 () public view virtual returns (uint256 avAmount) {
@@ -281,8 +282,8 @@ abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
         /// @dev in web3-like libs call with {from} key!
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @return uint256- available amount of _token for claiming 
-        /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
-   /*      if ( isPaused() ||  status == ABORTED || status < CAPPED)  return 0;
+        /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)`
+         if ( isPaused() ||  status == ABORTED || status < CAPPED)  return 0;
         for (uint8 i=0; i<rules.length; i++) { 
             if (rules[i].claimTime <= block.timestamp){
                 uint256 inc = rules[i].amount2.mul(raisedToken2).div(vest.vest1.amount2);
@@ -291,7 +292,7 @@ abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
            }
         }
             avAmount = avAmount.mul(vested[vest.vest1.token1][msg.sender]).div(raisedToken1);
-            avAmount = avAmount.sub(withdrawed[vest.vest1.token2][msg.sender]);         */
+            avAmount = avAmount.sub(withdrawed[vest.vest1.token2][msg.sender]);         
     } 
 
     function claimWithdrawToken2(uint256 _amount) public virtual { 
@@ -299,7 +300,7 @@ abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @param _amount - uint256 desired amount of  claiming token , 
 
-       /*  require(!isPaused(), "Withdraw paused by participant");
+         require(!isPaused(), "Withdraw paused by participant");
         require(status != ABORTED , "Vesting aborted");
         require(status >= CAPPED,  "Vesting not capped");
        
@@ -312,25 +313,25 @@ abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
         if (raisedToken1 == withdrawedToken1 && raisedToken2 == withdrawedToken2) { 
             status = FINISHED;
             emit Finished (address(this));
-        } */
+        } 
         
     }
     
   
     function pauseWithdraw(string calldata _reason) public virtual override {
-  /*       require(vested[vest.vest1.token1][msg.sender] > vest.vest2.vestShare4pauseWithdraw * raisedToken1 /100 ||
+         require(vested[vest.vest1.token1][msg.sender] > vest.vest2.vestShare4pauseWithdraw * raisedToken1 /100 ||
                 vested[vest.vest1.token2][msg.sender] > vest.vest2.vestShare4pauseWithdraw * raisedToken1 /100, 
                 "Didn't vested enough to pause work"
                 );
         pauses.push(WithdrawPauses(msg.sender, block.timestamp, _reason));
         status = PAUSED;
-        emit VestStatus(address(this),PAUSED); */
+        emit VestStatus(address(this),PAUSED); 
         
     }
     
 
     function voteAbort(bool _vote) public virtual override {
-      /*   if (_vote && isPaused())  {
+         if (_vote && isPaused())  {
             require (!voters[msg.sender], "already voted!");
             voters[msg.sender] = true;
             uint shareVote = vested[vest.vest1.token1][msg.sender].mul(100).div(raisedToken1);
@@ -347,12 +348,12 @@ abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
             }
         } else if (!isPaused()) {
             votesForAbort =0;
-        } */
+        } 
         
     }
 
     function refund () public virtual override  {
-       /*  require(status == ABORTED , "Vesting works normally, can't refund" );
+         require(status == ABORTED , "Vesting works normally, can't refund" );
         uint256 avAmount1;
         //refund token1
         if (vested[vest.vest1.token1][msg.sender] > 0) { 
@@ -374,7 +375,7 @@ abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
             avAmount2 = raisedToken2 - withdrawedToken2; //IERC20(vest.vest1.token2).balanceOf(address(this));
             avAmount2 = avAmount2.mul(vested[vest.vest1.token2][msg.sender]).div(vest.vest1.amount2);
             IERC20(vest.vest1.token2).transfer( msg.sender, avAmount2);
-        } */
+        } 
     }
 
     function getVestedTok1 () public view returns (uint256) {

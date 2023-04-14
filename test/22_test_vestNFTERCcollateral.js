@@ -67,7 +67,9 @@ let snapshotId;
         isNative: false,
         prevRound:ETHCODE, //noprevround
         penalty: 0,
-        penaltyPeriod: 0                
+        penaltyPeriod: 0,
+        capFinishTime: 0
+                
        }
     }
 

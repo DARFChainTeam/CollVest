@@ -66,19 +66,31 @@ let snapshotId;
         isNative: false,
         prevRound:ETHCODE, //noprevround
         penalty: 0,
-        penaltyPeriod: 0        
+        penaltyPeriod: 0,
+        capFinishTime: 0
+
        }
     }
     
+   
+    await t1.transfer(accounts[1], startVestConf.vest1.amount1 /3, {from:accounts[0]});
+    await t1.transfer(accounts[1], startVestConf.vest1.amount1 /3, {from:accounts[0]});
+    await t1.approve(dSVFact.address, startVestConf.vest1.amount1 /3, {from:accounts[1]});
+
     const txDepl = await dSVFact.deployVest (
+      t1.address, 
+      accounts[1],
+      startVestConf.vest1.amount1 /3,
       vestRules,
-      startVestConf
+      startVestConf,
+      {from:accounts[1]}
     );
     
     vestContractAddr = txDepl.logs[0].args[0];
     const eventConf  = txDepl.logs[0].args[1];
     const eventRules = txDepl.logs[0].args[2]
 
+    
     assert.equal(eventRules[0].amount1,  vestRules[0].amount1, "vestRules");
     assert.equal(eventConf.vest1.amount2,  startVestConf.vest1.amount2, "vestConf");
 
@@ -95,17 +107,15 @@ let snapshotId;
     const t1 = await Token1.deployed();
 
 
-    await t1.transfer(accounts[1], startVestConf.vest1.amount1 /3, {from:accounts[0]});
     await t1.transfer(accounts[2], startVestConf.vest1.amount1 /3, {from:accounts[0]});
     await t1.transfer(accounts[3], startVestConf.vest1.amount1 /3, {from:accounts[0]});
     
-    await t1.approve(vestContractAddr, startVestConf.vest1.amount1 /3, {from:accounts[1]});
     await t1.approve(vestContractAddr, startVestConf.vest1.amount1 /3, {from:accounts[2]});
     await t1.approve(vestContractAddr, startVestConf.vest1.amount1 /3, {from:accounts[3]});
 
     const vestContract = await VestContract.at(vestContractAddr);
 
-    await vestContract.putVesting(startVestConf.vest1.token1, accounts[1], startVestConf.vest1.amount1 /3, {from:accounts[1]} )
+    await vestContract.putVesting(startVestConf.vest1.token1, accounts[3], startVestConf.vest1.amount1 /3, {from:accounts[3]} )
     await vestContract.putVesting(startVestConf.vest1.token1, accounts[2], startVestConf.vest1.amount1 /3, {from:accounts[2]} )
     
 
