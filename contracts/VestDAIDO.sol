@@ -12,19 +12,19 @@ contract VestDAIDO is DoubleSideVesting {
     using SafeMath for uint256;
 
       
-    function putVesting (address _token, address _recepient, uint256 _amount) public override  payable {
+    function putVesting (address _token, address _recipient, uint256 _amount) public override  payable {
     /// @notice accepts vesting payments from both sides 
     /// @dev divides for native and ERC20 flows
     /// @param  _token - address of payment token,  "0x01" for native blockchain tokens 
-    /// @param  _recepient - address of wallet, who can claim tokens
+    /// @param  _recipient - address of wallet, who can claim tokens
     /// @param  _amount - sum of vesting payment in wei 
 
     /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
     {   
 
-        uint256 curVest =  vested[_token][_recepient] +_amount;
+        uint256 curVest =  vested[_token][_recipient] +_amount;
         
-        if (curVest == _amount) vestors.push(_recepient);                      
+        if (curVest == _amount) vestors.push(_recipient);                      
         if (_token == vest.vest1.token1) {       
             if (vest.vest2.prevRound != address(ETHCODE) ) {
                 require (VestDAIDO(vest.vest2.prevRound).status() >=CAPPED, "Didn't finished previous round"); 
@@ -45,8 +45,8 @@ contract VestDAIDO is DoubleSideVesting {
             IERC20(_token).transferFrom(msg.sender, address(this), _amount);
         }
          
-        vested[_token][_recepient] = curVest;
-        emit Vested(address(this), _token, _recepient, _amount);
+        vested[_token][_recipient] = curVest;
+        emit Vested(address(this), _token, _recipient, _amount);
     } 
     {
         if (vest.vest1.softCap1 >0 && //softCap case
@@ -168,6 +168,7 @@ contract VestDAIDO is DoubleSideVesting {
         }
         else {
             IERC20(vest.vest1.token1).transferFrom( msg.sender, address(this), feeSum);
+            IERC20(vest.vest1.token2).transfer( msg.sender, _amount);
         }
         
         emit Claimed(address(this), vest.vest1.token2, msg.sender, _amount);

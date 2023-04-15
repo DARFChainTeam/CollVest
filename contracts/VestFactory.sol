@@ -28,7 +28,7 @@ contract VestFactory is Ownable, IERC721Receiver {
         fee = _fee;
     }
 
-    function deployVest(  address _token, address _recepient, uint256 _amount,
+    function deployVest(  address _token, address _recipient, uint256 _amount,
         i2SVstruct.Rule[] calldata _rules,
         i2SVstruct.Vesting calldata _vestConf
 
@@ -36,7 +36,7 @@ contract VestFactory is Ownable, IERC721Receiver {
             /// @notice Explain to an end user what this does
             /// @dev Explain to a developer any extra details
             /// @param  _token - address of payment token,  "0x01" for native blockchain tokens 
-            /// @param  _recepient - address of wallet, who can claim tokens
+            /// @param  _recipient - address of wallet, who can claim tokens
             /// @param  _amount - sum of vesting payment in wei             
             /// @param _rules - vesting schedule 
             /// @param _vestConf - vesting parameters, see i2SVstruct.sol
@@ -51,7 +51,7 @@ contract VestFactory is Ownable, IERC721Receiver {
 
             if (_vestConf.vest2.isNative && msg.value == _amount ) {
                 vest.vest1.token1 = ETHCODE;
-                vsd.putVesting {value: msg.value} ( _token,  _recepient,  _amount); 
+                vsd.putVesting {value: msg.value} ( _token,  _recipient,  _amount); 
             
             } else if (vest.vest1.token2Id > 0 ) {
                 
@@ -59,13 +59,13 @@ contract VestFactory is Ownable, IERC721Receiver {
                 
                 IERC721(vest.vest1.token2).approve(address(vsd), vest.vest1.token2Id);
                 
-                vsd.putVesting ( _token,  _recepient,  vest.vest1.token2Id);                 
+                vsd.putVesting ( _token,  _recipient,  vest.vest1.token2Id);                 
             } 
             else 
             {
                 IERC20(_token).transferFrom(msg.sender, address(this), _amount);
                 IERC20(_token).approve(address(vsd), _amount);
-                vsd.putVesting ( _token,  _recepient,  _amount); 
+                vsd.putVesting ( _token,  _recipient,  _amount); 
 
             }
 

@@ -25,7 +25,7 @@ abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
     uint8 constant PAUSED = 100;
     uint8 constant VOTING = 150;
     uint8 constant ABORTED = 200;
-    uint8 constant REFUNDING = 220;
+    uint8 constant REFUNDED = 220;
     uint8 constant FINISHED = 255;
 
 
@@ -156,11 +156,11 @@ abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
         
         }
     
-    function putVesting (address _token, address _recepient, uint256 _amount) public override virtual  payable {
+    function putVesting (address _token, address _recipient, uint256 _amount) public override virtual  payable {
     /// @notice accepts vesting payments from both sides 
     /// @dev divides for native and ERC20 flows
     /// @param  _token - address of payment token,  "0x01" for native blockchain tokens 
-    /// @param  _recepient - address of wallet, who can claim tokens
+    /// @param  _recipient - address of wallet, who can claim tokens
     /// @param  _amount - sum of vesting payment in wei 
 
     /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
@@ -169,9 +169,9 @@ abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
         if (vest.vest2.prevRound != address(ETHCODE) ) {
             require (DoubleSideVesting(vest.vest2.prevRound).status() >=CAPPED, "Didn't finished previous round"); 
         }
-        (bool ok, uint256 curVest) =  vested[_token][_recepient].tryAdd(_amount);
+        (bool ok, uint256 curVest) =  vested[_token][_recipient].tryAdd(_amount);
         require(ok,  "curVest.tryAdd" );
-        if (curVest == _amount) vestors.push(_recepient);                      
+        if (curVest == _amount) vestors.push(_recipient);                      
         if (_token == vest.vest1.token1) {       
             if (vest.vest1.maxBuy1 > 0) require(curVest <= vest.vest1.maxBuy1, "limit of vesting overquoted for this address" );
             if (vest.vest2.isNative){ // payments with native token                     
@@ -189,8 +189,8 @@ abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
             IERC20(_token).transferFrom(msg.sender, address(this), _amount);
         }
          
-        vested[_token][_recepient] = curVest;
-        emit Vested(address(this), _token, _recepient, _amount);
+        vested[_token][_recipient] = curVest;
+        emit Vested(address(this), _token, _recipient, _amount);
     } 
     {
         if (vest.vest1.softCap1 >0 && //softCap case

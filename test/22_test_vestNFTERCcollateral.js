@@ -217,7 +217,7 @@ let snapshotId;
 
     });
 
-    it('team`d to add  annuitet mayment to vesting contract', async () =>  {
+    it('team`d to add  annuitet payment to vesting contract', async () =>  {
       const t1 = await Token1.deployed();
   
   
@@ -396,6 +396,50 @@ let snapshotId;
   
       });
 
+  it('team`d to add  annuitet payment to vesting contract 2/3', async () =>  {
+    const t1 = await Token1.deployed();
+
+
+    await t1.transfer(borrowerWallet, startVestConf.vest1.amount1 /3, {from:accounts[0]});
+    
+    await t1.approve(vestContractAddr, startVestConf.vest1.amount1 /3, {from:borrowerWallet});
+      
+    const vestContract = await VestContract.at(vestContractAddr);
+
+    await vestContract.putVesting(startVestConf.vest1.token1, borrowerWallet, startVestConf.vest1.amount1 /3, {from:borrowerWallet} )
+    
+    raisedToken1 = (await vestContract.raisedToken1()).toNumber();
+    raisedToken2 = (await vestContract.raisedToken2()).toNumber();
+    withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
+    withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
+  
+    console.log (raisedToken1, raisedToken2,withdrawedToken1, withdrawedToken2  ) 
+
+  });
+
+
+  it('team`d to add  annuitet payment to vesting contract 3/3', async () =>  {
+    const t1 = await Token1.deployed();
+
+
+    await t1.transfer(borrowerWallet, startVestConf.vest1.amount1 /3, {from:accounts[0]});
+    
+    await t1.approve(vestContractAddr, startVestConf.vest1.amount1 /3, {from:borrowerWallet});
+      
+    const vestContract = await VestContract.at(vestContractAddr);
+
+    await vestContract.putVesting(startVestConf.vest1.token1, borrowerWallet, startVestConf.vest1.amount1 /3, {from:borrowerWallet} )
+    
+    raisedToken1 = (await vestContract.raisedToken1()).toNumber();
+    raisedToken2 = (await vestContract.raisedToken2()).toNumber();
+    withdrawedToken1 = (await vestContract.withdrawedToken1()).toNumber();
+    withdrawedToken2 = (await vestContract.withdrawedToken2()).toNumber();
+  
+    console.log (raisedToken1, raisedToken2,withdrawedToken1, withdrawedToken2  ) 
+
+  });
+
+
   it('try to  refund  all investors withdrawed () ', async () => {
 
       const vestContract = await VestContract.at(vestContractAddr);
@@ -403,11 +447,11 @@ let snapshotId;
     
       const statusVest = (await vestContract.status()).toNumber();
   
-      assert (statusVest, 255, "finished");
+      
       raisedToken1 = (await vestContract.raisedToken1()).toNumber();
-      raisedToken2 = (await vestContract.raisedToken2()).toNumber();
       refundToken1 = (await vestContract.refundToken1()).toNumber();
       withdrawedRefund1 = (await vestContract.withdrawedRefund1()).toNumber();
+      assert.equal (statusVest, 220, "refunded");
 
       let balt1contr =  (await t1.balanceOf(vestContractAddr)).toNumber();
       const balt1acc1 =  (await t1.balanceOf(borrowerWallet)).toNumber();

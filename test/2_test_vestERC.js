@@ -73,11 +73,7 @@ let snapshotId;
     }
     
     await t1.transfer(accounts[1], startVestConf.vest1.amount1 /3, {from:accounts[0]});
-
-
-    await t1.transfer(accounts[1], startVestConf.vest1.amount1 /3, {from:accounts[0]});
     await t1.approve(dSVFact.address, startVestConf.vest1.amount1 /3, {from:accounts[1]});
-
 
     const txDepl = await dSVFact.deployVest (
       t1.address, 

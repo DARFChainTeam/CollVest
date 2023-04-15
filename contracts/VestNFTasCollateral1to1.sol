@@ -21,11 +21,11 @@ contract VestNFTasCollateral1to1 is DoubleSideVesting, IERC721Receiver  {
 
 
         
-    function putVesting (address _token, address _recepient, uint256 _amount) public override  payable {
+    function putVesting (address _token, address _recipient, uint256 _amount) public override  payable {
     /// @notice accepts vesting payments from both sides 
     /// @dev divides for native and ERC20 flows
     /// @param  _token - address of payment token,  "0x01" for native blockchain tokens 
-    /// @param  _recepient - address of wallet, who can claim tokens
+    /// @param  _recipient - address of wallet, who can claim tokens
     /// @param  _amount - sum of vesting payment in wei 
         require(vest.vest2.capFinishTime == 0 || vest.vest2.capFinishTime < block.timestamp, "time for vest out" );
         if (msg.sender == vest.vest2.borrowerWallet) { 
@@ -42,15 +42,15 @@ contract VestNFTasCollateral1to1 is DoubleSideVesting, IERC721Receiver  {
                 IERC721(vest.vest1.token2).safeTransferFrom(msg.sender , address(this), vest.vest1.token2Id);
                 
                 status = status==VESTORFUNDED?CAPPED:BORROWERFUNDED; ///@notice borrower sent NFT to us
-                emit Vested(address(this), vest.vest1.token2, _recepient, vest.vest1.token2Id);
+                emit Vested(address(this), vest.vest1.token2, _recipient, vest.vest1.token2Id);
                 
             }
         
         else {
             uint256 amount = vest.vest1.amount1;
-            (bool ok, uint256 curVest) =  vested[vest.vest1.token1][_recepient].tryAdd(amount);
+            (bool ok, uint256 curVest) =  vested[vest.vest1.token1][_recipient].tryAdd(amount);
             require(ok,  "curVest.tryAdd" );
-            if (curVest == _amount) vestors.push(_recepient);                      
+            if (curVest == _amount) vestors.push(_recipient);                      
            
             // if (vest.vest2.isNative){ // payments with native token                     
             //     require(amount == msg.value, "amount must be equal to sent ether");
@@ -60,10 +60,14 @@ contract VestNFTasCollateral1to1 is DoubleSideVesting, IERC721Receiver  {
             
             raisedToken1 = raisedToken1.add( amount);
             
-            vested[_token][_recepient] = curVest;
-            emit Vested(address(this), _token, _recepient, _amount);
+            vested[_token][_recipient] = curVest;
+            emit Vested(address(this), _token, _recipient, _amount);
             status = status==BORROWERFUNDED ?CAPPED:VESTORFUNDED;
 
+        }
+        if (raisedToken1 <= refundToken1  ) { 
+            status = REFUNDED;
+            emit Refunded (address(this));
         }
     }
 
@@ -194,8 +198,8 @@ contract VestNFTasCollateral1to1 is DoubleSideVesting, IERC721Receiver  {
     function refund () public override {
         /// @notice returning NFT to borrower if all ok
         
-        require(status == FINISHED , "not finished yet, can't refund" );
-          IERC721(vest.vest1.token2).safeTransferFrom( address(this), vest.vest2.borrowerWallet,  vest.vest1.token2Id);
+        require(status == REFUNDED , "not finished yet, can't refund" );
+        IERC721(vest.vest1.token2).safeTransferFrom( address(this), vest.vest2.borrowerWallet,  vest.vest1.token2Id);
 
     }
 

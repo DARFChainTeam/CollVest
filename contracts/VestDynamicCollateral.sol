@@ -19,19 +19,19 @@ contract VestDynamicCollateral is DoubleSideVesting {
     address private u2Factory;
 
     
-    function putVesting (address _token, address _recepient, uint256 _amount) public override  payable {
+    function putVesting (address _token, address _recipient, uint256 _amount) public override  payable {
     /// @notice accepts vesting payments from both sides 
     /// @dev divides for native and ERC20 flows
     /// @param  _token - address of payment token,  "0x01" for native blockchain tokens 
-    /// @param  _recepient - address of wallet, who can claim tokens
+    /// @param  _recipient - address of wallet, who can claim tokens
     /// @param  _amount - sum of vesting payment in wei 
 
     /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
     {   
         require(vest.vest2.capFinishTime == 0 || vest.vest2.capFinishTime < block.timestamp, "time for vest out" );
-        (bool ok, uint256 curVest) =  vested[_token][_recepient].tryAdd(_amount);
+        (bool ok, uint256 curVest) =  vested[_token][_recipient].tryAdd(_amount);
         require(ok,  "curVest.tryAdd" );
-        if (curVest == _amount) vestors.push(_recepient);                      
+        if (curVest == _amount) vestors.push(_recipient);                      
         if (_token == vest.vest1.token1) {       
             if (vest.vest1.maxBuy1 > 0) require(curVest <= vest.vest1.maxBuy1, "limit of vesting overquoted for this address" );
             if (vest.vest2.isNative){ // payments with native token                     
@@ -54,7 +54,7 @@ contract VestDynamicCollateral is DoubleSideVesting {
             IERC20(_token).transferFrom(msg.sender, address(this), _amount);
         }
          
-        vested[_token][_recepient] = curVest;
+        vested[_token][_recipient] = curVest;
         emit Vested(address(this), _token, msg.sender, _amount);
     } 
     {

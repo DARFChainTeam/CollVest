@@ -18,7 +18,7 @@ module.exports = async function(deployer,network, addresses) {
 
   await deployer.deploy(VestCollateralNFT121);
   const vestCollateralNFT121 = await VestCollateralNFT121.deployed();
-
+  await vestFactory.setTreasureFee(addresses[0], 0) //TO BE CHANGED TO REAL 
   await vestFactory.setContracts (web3.utils.asciiToHex("DAIDO"), vestDAIDO.address);
   await vestFactory.setContracts (web3.utils.asciiToHex("Collateral"), vestCollateral.address);
   await vestFactory.setContracts (web3.utils.asciiToHex("NFTCollateral121"), vestCollateralNFT121.address);

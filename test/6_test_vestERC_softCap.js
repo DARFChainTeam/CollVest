@@ -197,7 +197,7 @@ let snapshotId;
     const balt1before1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
     
     let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
-    assert.equal (av2claimt1, Math.floor(startVestConf.vest1.amount1 *2 /3 /3), "amount t1 1st month ")
+    assert.equal (av2claimt1, Math.floor(startVestConf.vest1.amount1 /3), "amount t1 1st month ")
 
     await vestContract.claimWithdrawToken1( av2claimt1 ) ;
     
@@ -226,7 +226,7 @@ let snapshotId;
     await vestContract.claimWithdrawToken2( av2claimt2, {from:accounts[1]} ) ;
 
     assert.equal ( 
-      Math.floor(startVestConf.vest1.amount2 /periods * vested1 / (startVestConf.vest1.amount1 *2 /3)), 
+      Math.floor(startVestConf.vest1.amount2 /periods * vested1 / (startVestConf.vest1.amount1)), 
       av2claimt2, "amount t2 1st month ")
 
     const balt2after1 = (await  t2.balanceOf(accounts[1])).toNumber();
@@ -259,7 +259,7 @@ let snapshotId;
     let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
     assert.equal (
       av2claimt1, 
-      Math.floor(startVestConf.vest1.amount1 * 2 /3  /periods), "amount t1 2nd month ")
+      Math.floor(startVestConf.vest1.amount1 /3), "amount t1 2nd month ")
 
     await vestContract.claimWithdrawToken1( av2claimt1 ) ;
     
@@ -315,7 +315,7 @@ let snapshotId;
       
       let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
       assert.equal (av2claimt1, 
-                    Math.floor(startVestConf.vest1.amount1*2/3 /3), "amount t1 3d month ")
+                    Math.floor(startVestConf.vest1.amount1/3), "amount t1 3d month ")
   
       await vestContract.claimWithdrawToken1( av2claimt1 ) ;
       
@@ -345,7 +345,7 @@ let snapshotId;
       const balt2after1 = (await  t2.balanceOf(accounts[1])).toNumber();
   
       assert.equal (balt2after1 - balt2before1,  av2claimt2, "balt1before1+ av2claimt1" );
-      assert.equal (av2claimt2, Math.round(startVestConf.vest1.amount2 /periods * vested1 / (startVestConf.vest1.amount1 *2 /3)), "amount t2 3d month ")
+      assert.equal (av2claimt2, Math.round(startVestConf.vest1.amount2 /periods * vested1 / startVestConf.vest1.amount1), "amount t2 3d month ")
   
       av2claimt2 = (await vestContract.availableClaimToken2()).toNumber();
   
