@@ -40,6 +40,8 @@ interface i2SVstruct {
         uint256 penalty;
         uint256 penaltyPeriod;
         uint256 capFinishTime; // time when cap will be achieved
+        uint256 roundStartTime; // time when round starts
+        bool nonWhitelisted;
     } 
 
     event CreatedVesting ( address indexed, Vesting, Rule[]); //vesting contract, terms,  conditions

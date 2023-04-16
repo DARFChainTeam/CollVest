@@ -5,11 +5,13 @@ import "./interfaces/i2SV.sol";
 import "./interfaces/IERC20.sol";
 import "./libs/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Context.sol";
+
 /// @title Typical DoubleSideVesting vesting contract
 /// @author @stanta
 /// @notice The team has issued tokens on TGE (again) and wants to sell them to a group of investors. Investors want to control the progress of the project. Thats why unlock for both sides goes step-by-step.
 /// @dev TBD 
-abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
+abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard, Context {
     using SafeMath for uint256;
 
     //    Statuses:     0-created, 10- capped , 20 - started, 100 - paused 200 - aborted, 255 - finished
@@ -87,10 +89,6 @@ abstract contract DoubleSideVesting is  i2SV, ReentrancyGuard {
      */
     function _checkOwner() internal view virtual {
         require(owner() == _msgSender(), "Ownable: caller is not the owner");
-    }
-
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
     }
 
 
