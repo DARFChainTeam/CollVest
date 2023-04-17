@@ -2,7 +2,7 @@
 
 pragma solidity >=0.4.22 <0.9.0;
 import "./interfaces/i2SVstruct.sol";
-import "./interfaces/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./libs/SafeMath.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
@@ -20,10 +20,8 @@ contract TokenSaleVesting is i2SVstruct,  AccessControl {
     }
 
     uint8 constant CREATED = 1;
-    
     uint8 constant SOFTCAPPED = 9;
     uint8 constant CAPPED = 10;
-    
     uint8 constant FINISHED = 255;
 
 
@@ -65,7 +63,27 @@ contract TokenSaleVesting is i2SVstruct,  AccessControl {
         nonInitialised = false;
     }
     
-    
+    function setVesting (
+        Vesting calldata _vest,
+        Rule[] calldata _rules
+        ) external { 
+        require(!isConfigured, "can't change anything");
+        if (_vest.vest2.isNative) require( _vest.vest1.token1 == ETHCODE, "Error in config native token");
+        
+        uint256 amount1;
+        uint256 amount2;            
+        for (uint8 i=0; i<_rules.length; i++) {
+            amount1 += _rules[i].amount1;
+            amount2 += _rules[i].amount2;            
+            rules.push (_rules[i]); 
+        }
+        require( amount2 == 1000, "Error in vest schedule"  );
+        vest = _vest;
+        isConfigured = true;
+        emit CreatedVesting(address(this),_vest, _rules);
+        emit VestStatus(address(this),CREATED);
+        }
+
     function setupWhiteList (address[] calldata _wl ) public {
         for (uint16 roleN = 0; roleN < _wl.length; roleN ++) {
             grantRole (WHITELISTED_ADDRESS, _wl[roleN]);
@@ -73,13 +91,15 @@ contract TokenSaleVesting is i2SVstruct,  AccessControl {
     }
 
     function migrateUsers(Migrant[] calldata _migrants ) public onlyRole(getRoleAdmin(WHITELISTED_ADDRESS)){
+        require(vest.vest2.onlyVesting, "not a vesting contract" );
         for (uint16 m = 0; m < _migrants.length; m ++) {
             _migrateUser(_migrants[m].addr, _migrants[m].am); 
         }
 
     }
-    function buy( uint256 _amount, address _recipient) public {
-        require (vest.vest2.roundStartTime <= block.timestamp && vest.vest2.capFinishTime > block.timestamp, "round not active now");
+    function swap( uint256 _amount, address _recipient) public {
+        require (vest.vest2.roundStartTime == 0 || vest.vest2.roundStartTime < block.timestamp, "round doesn't  start yet");
+        require (vest.vest2.capFinishTime == 0 || vest.vest2.capFinishTime > block.timestamp, "round already finished");
         require (vest.vest2.nonWhitelisted || hasRole("WL", _msgSender()), "msg.sender not in whitelist");
 
         if (vest.vest2.prevRound != address(ETHCODE) ) {
@@ -108,19 +128,15 @@ contract TokenSaleVesting is i2SVstruct,  AccessControl {
             }
         
 
-        if (raisedToken1 >= vest.vest1.amount1 && 
-            raisedToken2 >= vest.vest1.amount2 &&
-            ((vest.vest2.isNative && address(this).balance >=  vest.vest1.amount1) ||
-            (!vest.vest2.isNative && IERC20(vest.vest1.token1).balanceOf(address(this)) >= vest.vest1.amount1)) &&
-             IERC20(vest.vest1.token2).balanceOf(address(this)) >= vest.vest1.amount2
-            ) {
+        if (raisedToken1 >= vest.vest1.amount1 ) {
                 status = CAPPED;
                 emit VestStatus(address(this),status);
 
             }
         }
-        _migrateUser (_recipient, _amount.mul(vest.vest1.amount1).div(vest.vest1.amount2));
-        claim(availableClaim());
+        _migrateUser (_recipient, _amount.mul(rate()));
+        uint256 av = availableClaim();
+        if (av > 0) claim(av);
     }
 
 
@@ -133,21 +149,22 @@ contract TokenSaleVesting is i2SVstruct,  AccessControl {
     }
 
  
-    function availableClaim() public view   returns (uint256 avAmount) {
+    function availableClaim() public view   returns (uint256 ) {
         /// @notice calculates  available amount of token2 for claiming by vestors
         /// @dev in web3-like libs call with {from} key!
         /// @param _token - address of claiming token , "0x01" for native blockchain tokens 
         /// @return uint256- available amount of _token for claiming 
         /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
+        uint256 avAmount;
         for (uint8 i=0; i<rules.length; i++) { 
             if (rules[i].claimTime <= block.timestamp){
                 uint256 inc = rules[i].amount2;
                 avAmount = avAmount.add(inc); 
-
            }
         }
-            avAmount = avAmount.mul(vested[vest.vest1.token2][msg.sender]);
-            avAmount = avAmount.sub(withdrawed[vest.vest1.token2][msg.sender]);        
+        avAmount = avAmount.mul(vested[vest.vest1.token2][msg.sender]).div(1000);
+        avAmount = avAmount.sub(withdrawed[vest.vest1.token2][msg.sender]);    
+        return avAmount;    
     } 
 
     function  claim (uint256 _amount) public    { 
@@ -157,16 +174,17 @@ contract TokenSaleVesting is i2SVstruct,  AccessControl {
 
         // require(!isPaused(), "Withdraw paused by participant");
         // require(status != ABORTED , "Vesting aborted");
-        require(status >= CAPPED,  "Vesting not capped");
+        // require(status >= CAPPED,  "Vesting not capped");
        
         uint256 avAmount = availableClaim();
+        require(avAmount > 0, "Nothing  for withdraw");
         require(_amount <= avAmount, "No enough amount for withdraw");
         withdrawed[vest.vest1.token2][msg.sender] = withdrawed[vest.vest1.token2][msg.sender].add(_amount);
         withdrawedToken2 = withdrawedToken2.add(_amount);
-       
-        
+        IERC20(vest.vest1.token2).transfer( msg.sender, _amount);
+
         emit Claimed(address(this), vest.vest1.token2, msg.sender, _amount);
-        if (raisedToken1 == withdrawedToken1 && raisedToken2 == withdrawedToken2) { 
+        if ( raisedToken2 == withdrawedToken2) { 
             status = FINISHED;
             emit Finished (address(this));
         }
@@ -192,6 +210,20 @@ contract TokenSaleVesting is i2SVstruct,  AccessControl {
                 break;            
            }
         }
+    }
+
+
+    function getVestedTok1 () public view returns (uint256) {
+        return (vested[vest.vest1.token1][msg.sender]);
+    }
+    function getVestedTok2 () public view returns (uint256) {
+        return (vested[vest.vest1.token2][msg.sender]);
+    }
+
+    function  withdraw2Treasury () external {
+        require (_msgSender() == factory , "only factory cal call"  );
+
+        IERC20(vest.vest1.token2).transfer(treasure, vest.vest1.amount2.sub(raisedToken2));
     }
     
 }

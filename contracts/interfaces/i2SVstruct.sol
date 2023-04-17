@@ -27,21 +27,16 @@ interface i2SVstruct {
         uint256 maxBuy1; //maximum sum of vesting per address in token1
         address token1; //bought tokens
         address token2; //vested  ERC20 or ERC721 tokens,  if isNative ==true, must set to "0x1"
-        uint256 token2Id; //ID of ERC721 for NFR vesting case 
         bytes vestType; //type of vesting contract for factory
         }
     struct Vesting2 {
-        uint256 pausePeriod; // period that withdrawing cab be pauseped until voting;
-        address borrowerWallet; //        
-        uint8 vestShare4pauseWithdraw; //share in percents of raised,  needed to be vested to  pause (to avoid greenmailer' dust attacks)
-        uint8 voteShareAbort; //share in percents of stakes needed to approve voting in this vesting
+        address borrowerWallet; //                
         bool isNative; // true if this vesting uses blockchain native token to vest, f.e. ETH in Ethereum mainnet       
         address prevRound;
-        uint256 penalty;
-        uint256 penaltyPeriod;
         uint256 capFinishTime; // time when cap will be achieved
         uint256 roundStartTime; // time when round starts
         bool nonWhitelisted;
+        bool onlyVesting;
     } 
 
     event CreatedVesting ( address indexed, Vesting, Rule[]); //vesting contract, terms,  conditions

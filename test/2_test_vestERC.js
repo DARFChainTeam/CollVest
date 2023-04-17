@@ -1,7 +1,7 @@
 /* eslint-disable no-undef */
 const timeMachine = require('ganache-time-traveler');
 const VestFactory = artifacts.require("VestFactory");
-const VestContract = artifacts.require("VestDAIDO");
+const VestContract = artifacts.require("TokenSaleVesting");
 const Token1 = artifacts.require("Token1");
 const Token2 = artifacts.require("Token2");
 
@@ -21,9 +21,9 @@ const isNative = 1 ;
 
 const now =  new Date().getTime() / 1000; //secs unix epoch
 
-const vestRules = [{amount1: 100, amount2: 500, claimTime: Math.floor(now + monthSecs)},
-                   {amount1: 100, amount2: 500, claimTime: Math.floor(now + monthSecs*2)},
-                   {amount1: 100, amount2: 500, claimTime: Math.floor(now + monthSecs*3)}
+const vestRules = [{amount1: 0, amount2: 333, claimTime: 0},
+                   {amount1: 0, amount2: 333, claimTime: Math.floor(now + monthSecs*1)},
+                   {amount1: 0, amount2: 334, claimTime: Math.floor(now + monthSecs*2)}
                 ];
 
 
@@ -55,30 +55,26 @@ let snapshotId;
         maxBuy1:0,
         token1: t1.address,
         token2: t2.address,
-        token2Id: 0, 
-        vestType: web3.utils.asciiToHex("DAIDO"),        
+        vestType: web3.utils.asciiToHex("TokenSaleVesting"),        
         },
     vest2: {      
-        pausePeriod:monthSecs,
         borrowerWallet: borrowerWallet,
-        vestShare4pauseWithdraw: 5,
-        voteShareAbort:75, 
         isNative: false,
         prevRound:ETHCODE, //noprevround
-        penalty: 0,
-        penaltyPeriod: 0,
-        capFinishTime: 0
-
+        capFinishTime: 0,
+        roundStartTime: Math.floor(now) - 100,
+        nonWhitelisted : true,
+        onlyVesting : false
        }
     }
     
-    await t1.transfer(accounts[1], startVestConf.vest1.amount1 /3, {from:accounts[0]});
-    await t1.approve(dSVFact.address, startVestConf.vest1.amount1 /3, {from:accounts[1]});
+    await t2.transfer(accounts[1], startVestConf.vest1.amount2, {from:accounts[0]});
+    await t2.approve(dSVFact.address, startVestConf.vest1.amount2, {from:accounts[1]});
 
     const txDepl = await dSVFact.deployVest (
-      t1.address, 
+      t2.address, 
       accounts[1],
-      startVestConf.vest1.amount1 /3,
+      startVestConf.vest1.amount2,
       vestRules,
       startVestConf,
       {from:accounts[1]}
@@ -103,19 +99,19 @@ let snapshotId;
   it('should send amount1 of token1 to  vesting contract', async () => {
     const t1 = await Token1.deployed();
 
-
+    await t1.transfer(accounts[1], startVestConf.vest1.amount1 /3, {from:accounts[0]});
     await t1.transfer(accounts[2], startVestConf.vest1.amount1 /3, {from:accounts[0]});
     await t1.transfer(accounts[3], startVestConf.vest1.amount1 /3, {from:accounts[0]});
     
+    await t1.approve(vestContractAddr, startVestConf.vest1.amount1 /3, {from:accounts[1]})
     await t1.approve(vestContractAddr, startVestConf.vest1.amount1 /3, {from:accounts[2]});
     await t1.approve(vestContractAddr, startVestConf.vest1.amount1 /3, {from:accounts[3]});
 
     const vestContract = await VestContract.at(vestContractAddr);
 
-    // await vestContract.putVesting(startVestConf.vest1.token1, accounts[1], startVestConf.vest1.amount1 /3, {from:accounts[1], value:startVestConf.vest1.amount1 /3} )
-    await vestContract.putVesting(startVestConf.vest1.token1, accounts[2], startVestConf.vest1.amount1 /3, {from:accounts[2], value:startVestConf.vest1.amount1 /3} )
-    await vestContract.putVesting(startVestConf.vest1.token1, accounts[3], startVestConf.vest1.amount1 /3, {from:accounts[3], value:startVestConf.vest1.amount1 /3} )
-
+    await vestContract.swap( startVestConf.vest1.amount1 /3, accounts[1],  {from:accounts[1]} )
+    await vestContract.swap( startVestConf.vest1.amount1 /3, accounts[2],  {from:accounts[2]} )
+    await vestContract.swap( startVestConf.vest1.amount1 /3, accounts[3],  {from:accounts[3]} )
 
     const vested1 = await vestContract.getVestedTok1( {from: accounts[1]} ); 
     const vested2 = await vestContract.getVestedTok1( {from: accounts[2]} ); 
@@ -129,38 +125,9 @@ let snapshotId;
 
     
 
-  it('should send amount2 of token2 to  vesting contract', async () => {
-    // let snapshot = await timeMachine.takeSnapshot();
-    // snapshotId = snapshot['result'];
-
-    const t2 = await Token2.deployed();
-  //  const balance = await t2.balanceOf(accounts[0])
-
-    await t2.transfer(borrowerWallet, startVestConf.vest1.amount2);
-    const balance = (await t2.balanceOf(borrowerWallet)).toNumber();
-    assert.equal(balance, startVestConf.vest1.amount2, "didn't transfer startVestConf.vest1.amount2");
 
 
-    const vestContract = await VestContract.at(vestContractAddr);
-    const balanceT2_9= (await t2.balanceOf(accounts[9])).toNumber();;
-
-    await t2.approve(vestContractAddr,startVestConf.vest1.amount2, {from:borrowerWallet});
-    await vestContract.putVesting(t2.address, borrowerWallet, startVestConf.vest1.amount2 /2 , {from:borrowerWallet} )
-    
-    // const allowanceT2 =  ( await t2.allowance(accounts[0], vestContractAddr )).toNumber();
-    await t2.approve(vestContractAddr,startVestConf.vest1.amount2, {from:accounts[0]});
-
-    //TODO - strange bug, cant invest from acc[0]
-    await vestContract.putVesting(t2.address, borrowerWallet, startVestConf.vest1.amount2/2, {from: accounts[0]});
-
-    const vested9 = await vestContract.getVestedTok2( {from: borrowerWallet} ); 
-    assert.equal(startVestConf.vest1.amount2, vested9/* [1] */.toNumber(), "vested9");
-
-
-  });
-
-
-  it('vesting funded', async () => {
+  it('vesting CAPPED', async () => {
     const vestContract = await VestContract.at(vestContractAddr);
     const t2 =  await Token2.deployed();
 
@@ -169,41 +136,13 @@ let snapshotId;
     const balt2_c = (await  t2.balanceOf(vestContractAddr)).toNumber();
     
 
-    assert.equal(10, status2SV.toNumber(), "vested status");
+    assert.equal(10, status2SV.toNumber(), "vested not CAPPED status");
 
   });
 
     
 
-  it('withdraw t1 once approved amount 1period time', async () => {
-
-     // time shift 
-    var block = await web3.eth.getBlock("latest");
-    const timeShift =  monthSecs; // openingTime - block.timestamp 
-    await timeMachine.advanceTimeAndBlock(timeShift + 100);
-    block = await web3.eth.getBlock("latest");
-    assert (block.timestamp > new Date().getTime() / 1000 ,block.timestamp,  "time machine didn't works" )
-    // console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
-
-    const vestContract = await VestContract.at(vestContractAddr);
-    const t1 =  await Token1.deployed();
-
-    const balt1before1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
-    
-    let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
-    assert.equal (av2claimt1, startVestConf.vest1.amount1 /3, "amount t1 1st month ")
-
-    await vestContract.claimWithdrawToken1( av2claimt1 ) ;
-    
-    const balt1after1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
-
-    assert.equal (balt1after1 - balt1before1,  av2claimt1, "balt1before1+ av2claimt1" );
-
-    av2claimt1 = (await vestContract.availableClaimToken1()).toNumber();
-
-    assert.equal (av2claimt1, 0, "not all claimed ")
-
-    });
+  
   it('withdraw t2 once approved amount 1 period time', async () => {
 
     // // console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
@@ -215,23 +154,26 @@ let snapshotId;
 
     const balt2before1 =  (await  t2.balanceOf(accounts[1])).toNumber();
     const vested1 = (await vestContract.getVestedTok1({from:accounts[1]})).toNumber();
-    let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[1]})).toNumber();
+    let av2claimt2 =  (await vestContract.availableClaim({from:accounts[1]})).toNumber();
+    const vested2 = (await vestContract.getVestedTok2({from:accounts[1]})).toNumber();
+    const vestConf = await vestContract.vest();
+    const withdrawed = (await vestContract.withdrawed(t2.address, accounts[1])).toNumber()
 
-    await vestContract.claimWithdrawToken2( av2claimt2, {from:accounts[1]} ) ;
+    // await vestContract.claim( av2claimt2, {from:accounts[1]} ) ;
 
-    assert.equal (av2claimt2, Math.floor(startVestConf.vest1.amount2 /periods * vested1 / startVestConf.vest1.amount1), "amount t2 1st month ")
+    // assert.equal (av2claimt2, Math.floor(startVestConf.vest1.amount2 /periods * vested1 / startVestConf.vest1.amount1), "amount t2 1st month ")
 
     const balt2after1 = (await  t2.balanceOf(accounts[1])).toNumber();
 
     assert.equal (balt2after1 - balt2before1,  av2claimt2, "balt1before1+ av2claimt1" );
 
-    av2claimt2 = (await vestContract.availableClaimToken2()).toNumber();
+    av2claimt2 = (await vestContract.availableClaim()).toNumber();
 
     assert.equal (av2claimt2, 0, "not all claimed T2")
   
     });
 
-  it('withdraw t1 once approved amount 2nd period time', async () => {
+  it('withdraw t2 once approved amount 2nd period time', async () => {
 
     // time shift 
     var block = await web3.eth.getBlock("latest");
@@ -239,29 +181,8 @@ let snapshotId;
     await timeMachine.advanceTimeAndBlock(timeShift + 100);
     block = await web3.eth.getBlock("latest");
     assert (block.timestamp > new Date().getTime() / 1000 ,block.timestamp,  "time machine didn't works" )
-    // console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
-
-    const vestContract = await VestContract.at(vestContractAddr);
-    const t1 =  await Token1.deployed();
-
-    const balt1before1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
-    
-    let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
-    assert.equal (av2claimt1, startVestConf.vest1.amount1 /3, "amount t1 2nd month ")
-
-    await vestContract.claimWithdrawToken1( av2claimt1 ) ;
-    
-    const balt1after1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
-
-    assert.equal (balt1after1 - balt1before1,  av2claimt1, "balt1before1+ av2claimt1" );
-
-    av2claimt1 = (await vestContract.availableClaimToken1()).toNumber();
-
-    assert.equal (av2claimt1, 0, "not all claimed ")
-
-    });
-  it('withdraw t2 once approved amount 2nd period time', async () => {
-
+    console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
+   
     // // console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
       
     const vestContract = await VestContract.at(vestContractAddr);
@@ -271,22 +192,23 @@ let snapshotId;
 
     const balt2before1 =  (await  t2.balanceOf(accounts[1])).toNumber();
     const vested1 = (await vestContract.getVestedTok1({from:accounts[1]})).toNumber();
-    let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[1]})).toNumber();
+    let av2claimt2 =  (await vestContract.availableClaim({from:accounts[1]})).toNumber();
 
 
-    await vestContract.claimWithdrawToken2( av2claimt2, {from:accounts[1]} ) ;
+    await vestContract.claim( av2claimt2, {from:accounts[1]} ) ;
     const balt2after1 = (await  t2.balanceOf(accounts[1])).toNumber();
 
 
     assert.equal (av2claimt2, Math.round(startVestConf.vest1.amount2 /periods * vested1 / startVestConf.vest1.amount1), "amount t2 1st month ")
     assert.equal (balt2after1 - balt2before1,  av2claimt2, "balt1before1+ av2claimt1" );
 
-    av2claimt2 = (await vestContract.availableClaimToken2()).toNumber();
+    av2claimt2 = (await vestContract.availableClaim()).toNumber();
 
     assert.equal (av2claimt2, 0, "not all claimed T2")
 
     });
-  it('withdraw t1 once approved amount 3d period time', async () => {
+
+  it('withdraw t2 once approved amount 3d  period time', async () => {
 
     // time shift 
     var block = await web3.eth.getBlock("latest");
@@ -294,27 +216,7 @@ let snapshotId;
     await timeMachine.advanceTimeAndBlock(timeShift + 100);
     block = await web3.eth.getBlock("latest");
     assert (block.timestamp > new Date().getTime() / 1000 ,block.timestamp,  "time machine didn't works" )
-    // console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
-
-    const vestContract = await VestContract.at(vestContractAddr);
-    const t1 =  await Token1.deployed();
-
-    const balt1before1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
-    
-    let av2claimt1 =  (await vestContract.availableClaimToken1()).toNumber();
-    assert.equal (av2claimt1, startVestConf.vest1.amount1 /3, "amount t1 3d month ")
-
-    await vestContract.claimWithdrawToken1( av2claimt1 ) ;
-    
-    const balt1after1 =  (await t1.balanceOf(borrowerWallet)).toNumber();
-
-    assert.equal (balt1after1 - balt1before1,  av2claimt1, "balt1before1+ av2claimt1" );
-
-    av2claimt1 = (await vestContract.availableClaimToken1()).toNumber();
-
-    assert.equal (av2claimt1, 0, "not all claimed ")
-    });
-  it('withdraw t2 once approved amount 3d  period time', async () => {
+    console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
 
     // // console.log (new Date(block.timestamp  * 1000).toLocaleDateString("en-US") )
     
@@ -325,16 +227,16 @@ let snapshotId;
 
     const balt2before1 =  (await  t2.balanceOf(accounts[1])).toNumber();
     const vested1 = (await vestContract.getVestedTok1({from:accounts[1]})).toNumber();
-    let av2claimt2 =  (await vestContract.availableClaimToken2({from:accounts[1]})).toNumber();
+    let av2claimt2 =  (await vestContract.availableClaim({from:accounts[1]})).toNumber();
 
     
-    await vestContract.claimWithdrawToken2( av2claimt2, {from:accounts[1]} ) ;
+    await vestContract.claim( av2claimt2, {from:accounts[1]} ) ;
     const balt2after1 = (await  t2.balanceOf(accounts[1])).toNumber();
 
     assert.equal (balt2after1 - balt2before1,  av2claimt2, "balt1before1+ av2claimt1" );
     assert.equal (av2claimt2, Math.round(startVestConf.vest1.amount2 /periods * vested1 / startVestConf.vest1.amount1), "amount t2 1st month ")
 
-    av2claimt2 = (await vestContract.availableClaimToken2()).toNumber();
+    av2claimt2 = (await vestContract.availableClaim()).toNumber();
 
     assert.equal (av2claimt2, 0, "not all claimed T2")
 

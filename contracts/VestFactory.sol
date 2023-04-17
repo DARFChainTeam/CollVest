@@ -1,17 +1,16 @@
 pragma solidity >=0.4.22 <0.9.0;
-import "./interfaces/i2SV.sol";
+import "./interfaces/i2SVstruct.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol"; 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./interfaces/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./TokenSaleVesting.sol";
 
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 // import "./VestDAIDO.sol";
 // import "./VestCollateral.sol";
 
 
-contract VestFactory is Ownable, IERC721Receiver {
+contract VestFactory is Ownable {
     event NewVesting(address,  i2SVstruct.Vesting, i2SVstruct.Rule[]);
     address constant ETHCODE = address(0x0000000000000000000000000000000000000001);
     address private treasure;
@@ -43,50 +42,23 @@ contract VestFactory is Ownable, IERC721Receiver {
             
         i2SVstruct.Vesting memory vest = _vestConf;
         
-        i2SV vsd = i2SV (Clones.clone(vestContractsTypes[_vestConf.vest1.vestType]));
+        TokenSaleVesting vsd = TokenSaleVesting (Clones.clone(vestContractsTypes[_vestConf.vest1.vestType]));
         vsd.initialize (msg.sender,treasure, fee);  
         vsd.setVesting (            
                     vest,                
                     _rules);
 
-            if (_vestConf.vest2.isNative && msg.value == _amount ) {
-                vest.vest1.token1 = ETHCODE;
-                vsd.putVesting {value: msg.value} ( _token,  _recipient,  _amount); 
-            
-            } else if (vest.vest1.token2Id > 0 ) {
-                
-                IERC721(vest.vest1.token2).transferFrom(msg.sender , address(this), vest.vest1.token2Id);
-                
-                IERC721(vest.vest1.token2).approve(address(vsd), vest.vest1.token2Id);
-                
-                vsd.putVesting ( _token,  _recipient,  vest.vest1.token2Id);                 
-            } 
-            else 
-            {
-                IERC20(_token).transferFrom(msg.sender, address(this), _amount);
-                IERC20(_token).approve(address(vsd), _amount);
-                vsd.putVesting ( _token,  _recipient,  _amount); 
+        IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+        IERC20(_token).transfer(address(vsd), _amount);
 
-            }
-
-            emit NewVesting(address(vsd), vest, _rules);
-            allVestContracts.push(address(vsd));
+        emit NewVesting(address(vsd), vest, _rules);
+        allVestContracts.push(address(vsd));
         
     }
-
-        
-    function onERC721Received(
-        address operator,
-        address from,
-        uint256 tokenId,
-        bytes calldata data
-    )  external returns (bytes4) {
-        return this.onERC721Received.selector;
-    }
-
-    function  withdrawAll2Treasury () external onlyOwner {
+   function  withdrawAll2Treasury () external onlyOwner {
         for (uint i=0; i< allVestContracts.length; i++){
-            i2SV(allVestContracts[i]).withdraw2Treasury();
+            TokenSaleVesting(allVestContracts[i]).withdraw2Treasury();
         }
     }
+
 }
