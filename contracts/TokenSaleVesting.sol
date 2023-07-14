@@ -222,8 +222,10 @@ contract TokenSaleVesting is i2SVstruct,  AccessControl {
 
     function  withdraw2Treasury () external {
         require (_msgSender() == factory , "only factory cal call"  );
-
-        IERC20(vest.vest1.token2).transfer(treasure, vest.vest1.amount2.sub(raisedToken2));
+        uint256 withdrAmnt = vest.vest1.amount2.sub(raisedToken2);
+        if (withdrAmnt > 0 ) {
+             IERC20(vest.vest1.token2).transfer(treasure, withdrAmnt);
+        }  
     }
     
 }
