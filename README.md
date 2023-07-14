@@ -1,2 +1,2 @@
-# 2SV
+# Collateral Vesting ecosystem
 Double side vesting
